@@ -32,6 +32,8 @@ public class DeliverHandler extends AbstractHandler {
     }
     @Override
     public void after() {
+        LOGGER.info("1.主动关闭客户端连接 client seqId {}",seqId);
+        //通知远端删除channel
         wsClient.remove(seqId);
     }
 }

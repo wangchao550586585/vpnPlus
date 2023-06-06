@@ -16,6 +16,7 @@ import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -44,8 +45,8 @@ import static org.server.protocol.websocket.entity.WebsocketFrame.DEFAULT_MASK;
 public class WebsocketReceive extends AbstractHandler {
     Map<Integer, HttpClient> channelMap = new ConcurrentHashMap<>();
     private final Request request;
-    private String host="127.0.0.1";
-    private int port=8081;
+    private String host = "127.0.0.1";
+    private int port = 8081;
 
     public WebsocketReceive(ChannelWrapped channelWrapped, Request request) {
         super(channelWrapped);
@@ -147,7 +148,7 @@ public class WebsocketReceive extends AbstractHandler {
             //读取结束则清除本次读取数据
             channelWrapped.cumulation().clear();
         } catch (IOException e) {
-            LOGGER.error("error ",e);
+            LOGGER.error("error ", e);
         }
     }
 
@@ -158,13 +159,33 @@ public class WebsocketReceive extends AbstractHandler {
             String targetHost = jsonObject.getAsJsonPrimitive("host").getAsString();
             int targetPort = jsonObject.getAsJsonPrimitive("port").getAsInt();
             //连接http代理服务器。
-            HttpClient httpClient = new HttpClient(host, port, seqId, channelWrapped.channel(), targetHost, targetPort);
+            HttpClient httpClient = new HttpClient(host, port, seqId, channelWrapped.channel(), targetHost, targetPort, this);
             httpClient.connect();
             channelMap.put(seqId, httpClient);
             LOGGER.info("connect proxy http success,seqId {}", seqId);
         } else if (cmd.equals("write")) {
             HttpClient httpClient = channelMap.get(seqId);
-            httpClient.write(ByteBuffer.wrap(data));
+            if (Objects.nonNull(httpClient)){
+                httpClient.write(ByteBuffer.wrap(data));
+            }
+        } else if (cmd.equals("close")) {
+            LOGGER.info("3.收到客户端删除channel client seqId {}",seqId);
+            Optional.ofNullable(channelMap.remove(seqId)).ifPresent(it->{
+                //关闭channel和selector
+                it.close();
+                byte[] cmdByte = "closeAck".getBytes();
+                //占用2字节
+                byte[] seqIdByte = Utils.int2Byte(seqId);
+                LOGGER.info("6.收到客户端ACK client seqId {}",seqId);
+                try {
+                    WebsocketFrame.write(cmdByte, seqIdByte, new byte[0], seqId + "", channelWrapped.channel());
+                } catch (IOException e) {
+                    LOGGER.info("6.收到客户端ACK 失败 client seqId {}",seqId);
+                    throw new RuntimeException(e);
+                }
+            });
+        }else if (cmd.equals("writeAck")) {
+            LOGGER.error("7.主动收到客户端,发送ACK失败 server seqId {}",seqId);
         }
     }
 
@@ -197,4 +218,10 @@ public class WebsocketReceive extends AbstractHandler {
     }
 
 
+    public void remove(Integer seqId) {
+        Optional.ofNullable(channelMap.remove(seqId)).ifPresent(it -> {
+            LOGGER.info("通知客户端删除channel,剔除map success {} ", seqId);
+        });
+
+    }
 }

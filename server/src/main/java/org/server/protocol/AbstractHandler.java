@@ -17,6 +17,10 @@ public abstract class AbstractHandler implements Runnable {
         this.channelWrapped = channelWrapped;
     }
 
+    public ChannelWrapped getChannelWrapped() {
+        return channelWrapped;
+    }
+
     public void closeChildChannel() {
         try {
             channelWrapped.channel().close();

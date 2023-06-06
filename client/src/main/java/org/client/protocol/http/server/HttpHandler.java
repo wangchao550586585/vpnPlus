@@ -41,7 +41,7 @@ public class HttpHandler extends AbstractHandler {
         String uuid = channelWrapped.uuid();
         String[] split = request.getStartLine().getRequestTarget().split(":");
         int seqId = wsClient.seqId();
-        wsClient.connect(split[0], split[1], channelWrapped.channel(), uuid, seqId);
+        wsClient.connect(split[0], split[1], uuid, seqId,this);
         //更换附件
         DeliverHandler deliverHandler = new DeliverHandler(channelWrapped, wsClient, seqId);
         channelWrapped.key().attach(deliverHandler);

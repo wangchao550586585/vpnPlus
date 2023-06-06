@@ -11,6 +11,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * 这里可以进行websocket通信了
@@ -46,7 +47,10 @@ public class WsReceive extends AbstractHandler {
                 case 0x01:
                     break;
                 case 0x02:
-                    dataByte = Utils.binary2Bytes(frame.payloadData());
+                    if (dataByte.length==0){
+                        LOGGER.info("receive 0");
+                        return;
+                    }
                     //二进制帧
                     int off = 0;
                     int len = Utils.byteToIntV2(dataByte[off++]);
@@ -80,7 +84,7 @@ public class WsReceive extends AbstractHandler {
             //读取结束则清除本次读取数据
             channelWrapped.cumulation().clear();
         } catch (IOException e) {
-            LOGGER.error("error ",e);
+            LOGGER.error("error ", e);
         }
     }
 
@@ -91,17 +95,52 @@ public class WsReceive extends AbstractHandler {
                 LOGGER.info("websocket receive \r\n {}", new String(data));
             }*/
             //1.获取对应channel
-            SocketChannel channel = wsClient.channelMap.get(seqId);
-            if (null != channel) {
+            AbstractHandler handler = wsClient.channelMap.get(seqId);
+            if (null != handler) {
+                SocketChannel channel = handler.socketChannel();
                 try {
                     channel.write(ByteBuffer.wrap(data));
                 } catch (IOException e) {
-                    // TODO: 2023/6/6
+                    //通知远端删除
+                    LOGGER.info("1.主动关闭客户端连接 write error  client seqId {}",seqId);
                     wsClient.remove(seqId);
-                   LOGGER.error("该channel关闭 seqId "+seqId,e);
                 }
+            }else{
+                LOGGER.info("handlerRequest handler empty seqId {}",seqId);
             }
+
+        } else if (cmd.equals("closeAck")) {
+            LOGGER.info("7.主动关闭客户端ACK client seqId {}",seqId);
+        } else if (cmd.equals("close")) {
+            receiveClose(seqId);
         }
+    }
+
+    private void receiveClose(int seqId) {
+        LOGGER.info("4.主动收到服务端关闭channel server seqId {}",seqId);
+        //清除缓存数据
+        Optional.ofNullable(wsClient.channelMap.remove(seqId)).ifPresent(it -> {
+            //关闭客户端
+            try {
+                LOGGER.info("5.主动收到服务端,关闭channel server seqId {}",seqId);
+                it.getChannelWrapped().channel().close();
+            } catch (IOException e) {
+                LOGGER.error("5.主动收到服务端,关闭channel失败 server seqId "+seqId,e);
+                throw new RuntimeException(e);
+            }
+            it.getChannelWrapped().cumulation().clearAll();
+            //通知远端删除
+            byte[] cmdByte = "closeAck".getBytes();
+            //占用2字节
+            byte[] seqIdByte = Utils.int2Byte(seqId);
+            try {
+                LOGGER.info("6.主动收到服务端,发送ACK server seqId {}",seqId);
+                WebsocketFrame.write(cmdByte, seqIdByte, new byte[0], seqId + "", channelWrapped.channel());
+            } catch (IOException e) {
+                LOGGER.error("6.主动收到服务端,发送ACK失败 server seqId "+seqId,e);
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     @Override

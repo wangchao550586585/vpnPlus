@@ -12,6 +12,7 @@ import org.server.protocol.websocket.entity.WebsocketFrame;
 import org.server.protocol.websocket.server.WebsocketReceive;
 import org.server.util.Utils;
 
+import java.io.IOException;
 import java.nio.channels.SocketChannel;
 import java.util.List;
 import java.util.Objects;
@@ -20,12 +21,14 @@ public class HttpProxyHandler extends AbstractHandler {
     final Request request;
     final Integer seqId;
     final SocketChannel wsChannel;
+    final HttpClient httpClient;
 
-    public HttpProxyHandler(ChannelWrapped channelWrapped, Request request, Integer seqId, SocketChannel wsChannel) {
+    public HttpProxyHandler(ChannelWrapped channelWrapped, Request request, Integer seqId, SocketChannel wsChannel, HttpClient httpClient) {
         super(channelWrapped);
         this.request = request;
         this.seqId = seqId;
         this.wsChannel = wsChannel;
+        this.httpClient = httpClient;
     }
 
     @Override
@@ -41,7 +44,29 @@ public class HttpProxyHandler extends AbstractHandler {
   /*      if (bytes[0]==70){
             LOGGER.info("websocket receive \r\n {}", new String(bytes));
         }*/
+        if (bytes.length==0){
+            LOGGER.info("info is 0");
+            return;
+        }
         WebsocketFrame.write(cmdByte, seqIdByte, bytes, uuid, wsChannel);
     }
 
+    @Override
+    public void after() {
+        LOGGER.info("1.主动关闭selector server seqId {}",seqId);
+        httpClient.closeSelector();
+        //从map中删除httpclient
+        LOGGER.info("2.主动删除httpClient server seqId {}",seqId);
+        httpClient.remove(seqId);
+        byte[] cmdByte = "close".getBytes();
+        //占用2字节
+        byte[] seqIdByte = Utils.int2Byte(seqId);
+        try {
+            LOGGER.info("3.主动通知客户端关闭channel server seqId {}",seqId);
+            WebsocketFrame.write(cmdByte, seqIdByte, new byte[0], seqId + "", wsChannel);
+        } catch (IOException e) {
+            LOGGER.error("3.主动通知客户端关闭channel失败 server seqId "+seqId,e);
+            throw new RuntimeException(e);
+        }
+    }
 }

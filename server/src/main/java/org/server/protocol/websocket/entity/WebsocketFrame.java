@@ -70,7 +70,9 @@ public class WebsocketFrame {
         off = Utils.copy(off, payload, cmdByte);
         payload[off++] = (byte) seqIdByte.length;
         off = Utils.copy(off, payload, seqIdByte);
-        off = Utils.copy(off, payload, bytes);
+        if (bytes.length>0) {
+            off = Utils.copy(off, payload, bytes);
+        }
         WebsocketFrame.serverSendByte(payload, remoteChannel, uuid);
     }
 

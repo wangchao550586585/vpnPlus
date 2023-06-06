@@ -22,12 +22,14 @@ public class HttpClientHandler implements Runnable {
     final SocketChannel wsChannel;
     final String host;
     final Integer port;
-    public HttpClientHandler(ChannelWrapped channelWrapped, Integer seqId, String host, Integer port, SocketChannel wsChannel) {
+    final HttpClient httpClient;
+    public HttpClientHandler(ChannelWrapped channelWrapped, Integer seqId, String host, Integer port, SocketChannel wsChannel,HttpClient httpClient) {
         this.channelWrapped = channelWrapped;
         this.seqId = seqId;
         this.wsChannel = wsChannel;
         this.host=host;
         this.port=port;
+        this.httpClient=httpClient;
     }
 
     @Override
@@ -44,7 +46,7 @@ public class HttpClientHandler implements Runnable {
                             .proxyConnection("keep-alive")//值必须包含"websocket"。
                     );
             request.write(channelWrapped.channel(), uuid);
-            HttpProxyHandler websocketClientUpgrade = new HttpProxyHandler(channelWrapped, request,seqId,wsChannel);
+            HttpProxyHandler websocketClientUpgrade = new HttpProxyHandler(channelWrapped, request,seqId,wsChannel,httpClient);
             SelectionKey key = channelWrapped.key();
             key.interestOps(key.interestOps() & ~SelectionKey.OP_WRITE | SelectionKey.OP_READ);
             channelWrapped.key().attach(websocketClientUpgrade);

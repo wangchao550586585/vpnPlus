@@ -143,7 +143,9 @@ public class WebsocketFrame {
         off = Utils.copy(off, payload, cmdByte);
         payload[off++] = (byte) seqIdByte.length;
         off = Utils.copy(off, payload, seqIdByte);
-        off = Utils.copy(off, payload, bytes);
+        if (bytes.length>0) {
+            off = Utils.copy(off, payload, bytes);
+        }
         WebsocketFrame.clientSendByte(payload, remoteChannel, uuid);
     }
 
@@ -197,7 +199,7 @@ public class WebsocketFrame {
 
         //打印
         byte[] frame = getResult(channelWrapped.cumulation());
-        if (frame==null){
+        if (frame == null) {
             return null;
         }
         if (frame[0] != 1) {
@@ -268,7 +270,7 @@ public class WebsocketFrame {
         int remaining = cumulation.remaining();
         cumulation.mark();
         if (remaining < 2) {
-            LOGGER.warn("最少要2位数据包不完整 {} ",remaining);
+            LOGGER.warn("最少要2位数据包不完整 {} ", remaining);
             cumulation.reset();
             return null;
         }
@@ -287,7 +289,7 @@ public class WebsocketFrame {
 
         if (payloadLen < 126) {
         } else if (payloadLen >= 126 && payloadLen <= 65535) {
-            if (remaining < off+2) {
+            if (remaining < off + 2) {
                 cumulation.reset();
                 LOGGER.warn("extendedPlay 数据包不完整");
                 return null;
@@ -305,7 +307,7 @@ public class WebsocketFrame {
         byte[] maskKey = null;
         if (byte1[0] == 0x01) {
             //maskkey
-            if (remaining < off+4) {
+            if (remaining < off + 4) {
                 cumulation.reset();
                 LOGGER.info("mask 位数不够");
                 return null;
@@ -314,7 +316,7 @@ public class WebsocketFrame {
             off += 4;
         }
 
-        if (remaining < off+finalLen) {
+        if (remaining < off + finalLen) {
             cumulation.reset();
             LOGGER.warn("payloadLen 不够");
             return null;

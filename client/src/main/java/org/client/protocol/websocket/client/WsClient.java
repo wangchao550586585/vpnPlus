@@ -5,6 +5,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.client.entity.ChannelWrapped;
 import org.client.entity.CompositeByteBuf;
+import org.client.protocol.AbstractHandler;
 import org.client.protocol.websocket.entity.WebsocketFrame;
 import org.client.util.Utils;
 
@@ -22,7 +23,7 @@ public class WsClient implements Runnable {
     Selector remoteSelector;
     SocketChannel remoteChannel;
     volatile boolean flag;
-    Map<Integer, SocketChannel> channelMap = new ConcurrentHashMap<>();
+    Map<Integer, AbstractHandler> channelMap = new ConcurrentHashMap<>();
     AtomicInteger atomicInteger = new AtomicInteger();
 
     public static void main(String[] args) {
@@ -46,7 +47,7 @@ public class WsClient implements Runnable {
             this.remoteSelector = Selector.open();
             SelectionKey selectionKey = remoteChannel.register(remoteSelector, 0);
             ChannelWrapped channelWrapped = ChannelWrapped.builder().key(selectionKey).channel(remoteChannel);
-            Runnable handler = new WsClientHandler(channelWrapped,this);
+            Runnable handler = new WsClientHandler(channelWrapped, this);
             selectionKey.attach(handler);
             selectionKey.interestOps(SelectionKey.OP_WRITE);
             LOGGER.debug("remote register success");
@@ -107,9 +108,9 @@ public class WsClient implements Runnable {
         return atomicInteger.incrementAndGet();
     }
 
-    public void connect(String host, String port, SocketChannel channel, String uuid, int seqId) throws IOException {
+    public void connect(String host, String port, String uuid, int seqId, AbstractHandler abstractHandler) throws IOException {
         //channel添加到map
-        channelMap.put(seqId, channel);
+        channelMap.put(seqId, abstractHandler);
         //序列化值
         Gson gson = new Gson();
         Map<String, Object> map = new HashMap<>();
@@ -121,22 +122,35 @@ public class WsClient implements Runnable {
         //占用2字节
         byte[] seqIdByte = Utils.int2Byte(seqId);
         byte[] bytes = value.getBytes();
-        WebsocketFrame.write(cmdByte, seqIdByte, bytes, uuid,remoteChannel);
+        WebsocketFrame.write(cmdByte, seqIdByte, bytes, uuid, remoteChannel);
     }
 
     public void write(CompositeByteBuf cumulation, int seqId, String uuid) throws IOException {
-        SocketChannel channel = channelMap.get(seqId);
-        if (channel != null) {
+        AbstractHandler handler = channelMap.get(seqId);
+        if (null != handler) {
             byte[] cmdByte = "write".getBytes();
             //占用2字节
             byte[] seqIdByte = Utils.int2Byte(seqId);
             byte[] bytes = cumulation.readAllByte();
-            WebsocketFrame.write(cmdByte, seqIdByte, bytes, uuid,remoteChannel);
+            WebsocketFrame.write(cmdByte, seqIdByte, bytes, seqId + "", remoteChannel);
+        } else {
+            LOGGER.info("handlerRequest handler empty seqId {}",seqId);
         }
     }
 
     public void remove(int seqId) {
-        LOGGER.info("该channel关闭 seqId "+seqId);
-        channelMap.remove(seqId);
+        LOGGER.info("2.主动通知服务端删除channel client seqId {}",seqId);
+        Optional.ofNullable(channelMap.remove(seqId)).ifPresent(it -> {
+            //通知远端删除
+            byte[] cmdByte = "close".getBytes();
+            //占用2字节
+            byte[] seqIdByte = Utils.int2Byte(seqId);
+            try {
+                WebsocketFrame.write(cmdByte, seqIdByte, new byte[0], seqId + "", remoteChannel);
+            } catch (IOException e) {
+                LOGGER.error("2.主动通知服务端删除channel失败 client seqId "+seqId,e);
+                throw new RuntimeException(e);
+            }
+        });
     }
 }

@@ -3,6 +3,8 @@ package org.server.protocol.http.client;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.server.entity.ChannelWrapped;
+import org.server.protocol.AbstractHandler;
+import org.server.protocol.websocket.server.WebsocketReceive;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -23,11 +25,13 @@ public class HttpClient implements Runnable {
     final Integer targetPort;
     final Integer seqId;
     final SocketChannel wsChannel;
+    final WebsocketReceive websocketReceive;
     Selector remoteSelector;
     SocketChannel remoteChannel;
+    SelectionKey selectionKey;
     volatile boolean flag;
 
-    public HttpClient(String host, Integer port, int seqId, SocketChannel wsChannel, String targetHost, Integer targetPort) {
+    public HttpClient(String host, Integer port, int seqId, SocketChannel wsChannel, String targetHost, Integer targetPort, WebsocketReceive websocketReceive) {
         this.host = host;
         this.port = port;
         this.flag = true;
@@ -35,6 +39,7 @@ public class HttpClient implements Runnable {
         this.wsChannel = wsChannel;
         this.targetHost = targetHost;
         this.targetPort = targetPort;
+        this.websocketReceive=websocketReceive;
     }
 
     public HttpClient connect() {
@@ -46,9 +51,9 @@ public class HttpClient implements Runnable {
             while (!remoteChannel.finishConnect()) {
             }
             this.remoteSelector = Selector.open();
-            SelectionKey selectionKey = remoteChannel.register(remoteSelector, 0);
+            selectionKey = remoteChannel.register(remoteSelector, 0);
             ChannelWrapped channelWrapped = ChannelWrapped.builder().key(selectionKey).channel(remoteChannel);
-            Runnable handler = new HttpClientHandler(channelWrapped, seqId, targetHost, targetPort, wsChannel);
+            Runnable handler = new HttpClientHandler(channelWrapped, seqId, targetHost, targetPort, wsChannel, this);
             selectionKey.attach(handler);
             selectionKey.interestOps(SelectionKey.OP_WRITE);
             LOGGER.debug("remote register success");
@@ -88,15 +93,9 @@ public class HttpClient implements Runnable {
             LOGGER.error("remote select fail ", exception);
             throw new RuntimeException(exception);
         } finally {
-            if (Objects.nonNull(remoteChannel)) {
-                try {
-                    remoteSelector.close();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
             if (Objects.nonNull(remoteSelector)) {
                 try {
+                    LOGGER.info("关闭 channel remoteSelector seqId {} success " , seqId);
                     remoteSelector.close();
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -105,7 +104,38 @@ public class HttpClient implements Runnable {
         }
     }
 
+
     public void write(ByteBuffer wrap) throws IOException {
         remoteChannel.write(wrap);
+    }
+
+    public void close() {
+        try {
+            //删除channel
+            LOGGER.info("4.收到客户端删除http channel client seqId {}",seqId);
+            AbstractHandler attachment = (AbstractHandler) selectionKey.attachment();
+            ChannelWrapped channelWrapped = attachment.getChannelWrapped();
+            channelWrapped.channel().close();
+            channelWrapped.cumulation().clearAll();
+            //最后删除selector
+            LOGGER.info("5.收到客户端删除http selector client seqId {}",seqId);
+            closeSelector();
+        } catch (IOException e) {
+            LOGGER.error("5.收到客户端删除http selector失败 client seqId "+seqId,e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * 是否主动删除
+     */
+    public void closeSelector() {
+        //最后删除selector
+        flag = false;
+        remoteSelector.wakeup();
+    }
+
+    public void remove(Integer seqId) {
+        websocketReceive.remove(seqId);
     }
 }

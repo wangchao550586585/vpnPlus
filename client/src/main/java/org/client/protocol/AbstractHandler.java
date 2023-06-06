@@ -27,7 +27,9 @@ public abstract class AbstractHandler implements Runnable {
             throw new RuntimeException(e);
         }
     }
-
+    public ChannelWrapped getChannelWrapped() {
+        return channelWrapped;
+    }
     public void after() {
     }
 
@@ -88,4 +90,8 @@ public abstract class AbstractHandler implements Runnable {
     }
 
     protected abstract void exec() throws Exception;
+
+    public SocketChannel socketChannel() {
+        return channelWrapped.channel();
+    }
 }
