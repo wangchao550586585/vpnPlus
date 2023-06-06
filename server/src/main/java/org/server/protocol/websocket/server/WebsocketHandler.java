@@ -83,26 +83,4 @@ public class WebsocketHandler extends HttpHandler {
         LOGGER.info("websocket upgrade success {}",uuid);
     }
 
-    /**
-     * 不支持
-     *
-     * @param request
-     * @throws IOException
-     */
-    @Override
-    protected void doPost(Request request) throws IOException {
-        //dont accept
-        super.doPost(request);
-    }
-
-    /**
-     * 不支持
-     *
-     * @param request
-     */
-    @Override
-    protected void otherMethod(Request request) {
-        //dont accept
-        super.otherMethod(request);
-    }
 }

@@ -13,11 +13,11 @@ import java.util.*;
 /**
  * Hello world!
  */
-public class App {
-    protected final static Logger LOGGER = LogManager.getLogger(App.class);
+public class ClientApp {
+    protected final static Logger LOGGER = LogManager.getLogger(ClientApp.class);
 
     public static void main(String[] args) {
-        new App().vpnStart();
+        new ClientApp().vpnStart();
     }
 
     private void vpnStart() {

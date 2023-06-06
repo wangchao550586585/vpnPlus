@@ -65,7 +65,7 @@ public class WsClientUpgradeHandler extends AbstractHandler {
         new ScheduledThreadPoolExecutor(1, r -> new Thread(r, "ping" + r.hashCode()))
                 .scheduleAtFixedRate(heartbeat, 1, 5, TimeUnit.SECONDS);
         //协议升级
-        WsSend websocketClientUpgrade = new WsSend(channelWrapped, request, heartbeat, wsClient);
+        WsReceive websocketClientUpgrade = new WsReceive(channelWrapped, request, heartbeat, wsClient);
         channelWrapped.key().attach(websocketClientUpgrade);
         //清除读取的数据
         channelWrapped.cumulation().clear();

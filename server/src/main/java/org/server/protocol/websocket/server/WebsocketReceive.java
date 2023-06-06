@@ -45,7 +45,7 @@ public class WebsocketReceive extends AbstractHandler {
     Map<Integer, HttpClient> channelMap = new ConcurrentHashMap<>();
     private final Request request;
     private String host="127.0.0.1";
-    private int port=8080;
+    private int port=8081;
 
     public WebsocketReceive(ChannelWrapped channelWrapped, Request request) {
         super(channelWrapped);
@@ -66,11 +66,10 @@ public class WebsocketReceive extends AbstractHandler {
             WebsocketFrame frame = WebsocketFrame.parse(channelWrapped);
             //协议错误，断开连接
             if (Objects.isNull(frame)) {
-                LOGGER.warn("协议错误");
                 //closeChildChannel();
                 return;
             }
-            LOGGER.info("Receive {} {} ", frame.toString(), uuid);
+            //LOGGER.info("Receive {} {} ", frame.toString(), uuid);
             String msg = "";
             byte[] sendPayloadData;
             byte[] sendPayloadLen = null;
@@ -139,7 +138,7 @@ public class WebsocketReceive extends AbstractHandler {
                     /**
                      * 如果收到了一个心跳Ping帧，那么终端必须发送一个心跳Pong 帧作为回应，除非已经收到了一个关闭帧。终端应该尽快回复Pong帧。
                      */
-                    LOGGER.info("pong {} ", uuid);
+                    LOGGER.info("receive ping");
                     WebsocketFrame.defaultFrame(WebsocketFrame.OpcodeEnum.PONG, DEFAULT_MASK, null, null, null, null, channelWrapped.channel(), channelWrapped.uuid());
                     break;
                 default:

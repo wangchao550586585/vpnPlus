@@ -1,6 +1,5 @@
 package org.server.protocol.http;
 
-import org.server.RemoteConnect;
 import org.server.entity.CompositeByteBuf;
 import org.server.entity.ChannelWrapped;
 import org.server.protocol.AbstractHandler;
@@ -106,7 +105,7 @@ public class HttpHandler extends AbstractHandler {
             return null;
         }
         cumulation.mark();
-        cumulation.print(uuid);
+        //cumulation.print(uuid);
         //1:读取start line
         StartLine startLine = StartLine.parse(cumulation.readLine());
         LOGGER.debug("startLine {} {} ", startLine, uuid);

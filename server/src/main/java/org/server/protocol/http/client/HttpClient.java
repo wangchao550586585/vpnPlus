@@ -3,7 +3,6 @@ package org.server.protocol.http.client;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.server.entity.ChannelWrapped;
-import org.server.protocol.websocket.server.WebsocketReceive;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;

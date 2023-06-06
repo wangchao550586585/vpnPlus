@@ -31,9 +31,7 @@ public class CompositeByteBuf {
      * @param buffer
      */
     public void composite(ByteBuffer buffer) {
-        LOGGER.info("clear 之前readIndex {} buffers.size {}  ,remaining {}",readIndex,buffers.size(),remaining());
         buffers.add(buffer);
-        LOGGER.info("clear 之后readIndex {} buffers.size {}  ,remaining {}",readIndex,buffers.size(),remaining());
     }
 
     public int remaining() {
@@ -56,33 +54,21 @@ public class CompositeByteBuf {
     }
 
     public byte get() {
-        byte value = 0;
-        try {
-            ByteBuffer byteBuffer = buffers.get(readIndex);
-            value = byteBuffer.get();
-            //说明读到结尾处
-            if (byteBuffer.remaining() <= 0) {
-                //不允许超过边界
-                readIndex = Math.min(readIndex + 1, buffers.size());
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        ByteBuffer byteBuffer = buffers.get(readIndex);
+        byte value = byteBuffer.get();
+        //说明读到结尾处
+        if (byteBuffer.remaining() <= 0) {
+            //不允许超过边界
+            readIndex = Math.min(readIndex + 1, buffers.size());
         }
         return value;
     }
 
     public void clear() {
-        LOGGER.info("clear 之前readIndex {} buffers.size {}  ,remaining {}",readIndex,buffers.size(),remaining());
-        for (int i = readIndex-1; i >=0 ; i--) {
-            LOGGER.info("clear {} ,{},{}",i,readIndex,buffers.size());
+        for (int i = readIndex - 1; i >= 0; i--) {
             buffers.remove(i);
         }
-   /*     for (int i = 0; i < readIndex; i++) {
-            LOGGER.info("clear {} ,{},{}",i,readIndex,buffers.size());
-            buffers.remove(i);
-        }*/
         lastReadIndex = readIndex = 0;
-        LOGGER.info("clear 之后readIndex {} buffers.size {} ,remaining {}",readIndex,buffers.size(),remaining());
     }
 
     public void write(SocketChannel remoteClient) throws IOException {
@@ -197,18 +183,10 @@ public class CompositeByteBuf {
         }
     }
 
-    public byte[] binaryString() {
-        byte[] result = new byte[this.remaining() * 8];
-        for (int i = readIndex; i < buffers.size(); i++) {
-            byte[] dest = Utils.bytes2Binary(buffers.get(i));
-            System.arraycopy(dest, 0, result, 0, dest.length);
-        }
-        return result;
-    }
-
     public byte[] readAllByte() {
         return readByte(remaining());
     }
+
     public byte[] readByte(int length) {
         byte[] bytes = new byte[length];
         for (int i = 0; i < length; i++) {

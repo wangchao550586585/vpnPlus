@@ -275,18 +275,16 @@ public class WebsocketFrame {
         return result;
     }
     public static WebsocketFrame parse(ChannelWrapped channelWrapped) {
-        //byte[] frame = channelWrapped.cumulation().binaryString();
         byte[] frame = getResult(channelWrapped.cumulation());
         if (null==frame){
-            LOGGER.error("empty");
             return null;
         }
         if (frame[0] != 1) {
             LOGGER.error("not 1");
             return null;
         }
-        String s = Utils.buildBinaryReadable(frame);
-        LOGGER.info("receive frame {} {}", s, channelWrapped.uuid());
+        //String s = Utils.buildBinaryReadable(frame);
+        //LOGGER.info("receive frame {} {}", s, channelWrapped.uuid());
         //表示这是消息的最后一个片段。第一个片段也有可能是最后一个片段。
         int off = 0;
         byte fin = frame[off];
@@ -481,7 +479,7 @@ public class WebsocketFrame {
 
     public void write(SocketChannel channel, String uuid) throws IOException {
         byte[] response = build();
-        LOGGER.info("send frame {} {} ", Arrays.toString(Utils.bytes2Binary(response)), uuid);
+        //LOGGER.info("send frame {} {} ", Arrays.toString(Utils.bytes2Binary(response)), uuid);
         ByteBuffer byteBuffer = ByteBuffer.wrap(response);
         channel.write(byteBuffer);
     }

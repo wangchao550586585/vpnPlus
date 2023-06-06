@@ -48,7 +48,7 @@ public class HttpClientHandler implements Runnable {
             SelectionKey key = channelWrapped.key();
             key.interestOps(key.interestOps() & ~SelectionKey.OP_WRITE | SelectionKey.OP_READ);
             channelWrapped.key().attach(websocketClientUpgrade);
-            LOGGER.info("websocket upgrade success {}", uuid);
+            LOGGER.info("connect http proxy success {}", uuid);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
