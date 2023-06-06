@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+status：设置log4j2自身内部的信息输出
+monitorinterval用于指定log4j自动重新配置的监测间隔时间，单位是s,最小是5s。
+All < Trace < Debug < Info < Warn < Error < Fatal < OFF
+-->
+<Configuration status="OFF">
+    <Appenders>
+        <!--
+             日志输出地方
+             name：指定Appender的名字。
+        　　　target：SYSTEM_OUT 或 SYSTEM_ERR,一般只设置默认：SYSTEM_OUT。
+        　　　PatternLayout：输出格式，不设置默认为:%m%n。-->
+        <Console name="Console" target="SYSTEM_OUT">
+            <!-- 日志格式 -->
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %highlight{%-5level %logger{36} - %msg%n}"/>
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <!-- 日志类别 -->
+        <Root level="Info">
+            <!-- Console的name -->
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>
