@@ -25,7 +25,7 @@ public class HttpHandler extends AbstractHandler {
         if (Objects.isNull(request)) {
             return;
         }
-        LOGGER.info("IPV4 host:{} remoteAddress:{} {}", request.getRequestHeaders().getHost(), channelWrapped.channel().getRemoteAddress(), channelWrapped.uuid());
+
         //接收端接收到一个不合法的请求行request-line时，应当 响应一个 400 (Bad Request) 错误或者 301 (Move Permanently) 重定向，
         //服务器接收到超出其长度要求的请求方法request method时 应当 响应一个 501 (Not Implemented) 状态码。服务器接收到一个 URI 其长度超出服务器所期望的最大长度时，必须 响应一个 414 (URI Too Long) 状态码
         String method = request.getStartLine().getMethod();
@@ -41,6 +41,7 @@ public class HttpHandler extends AbstractHandler {
         String uuid = channelWrapped.uuid();
         String[] split = request.getStartLine().getRequestTarget().split(":");
         int seqId = wsClient.seqId();
+        LOGGER.info("IPV4 host:{} remoteAddress:{} {} seqId {}", request.getRequestHeaders().getHost(), channelWrapped.channel().getRemoteAddress(), channelWrapped.uuid(),seqId);
         wsClient.connect(split[0], split[1], uuid, seqId,this);
         //更换附件
         DeliverHandler deliverHandler = new DeliverHandler(channelWrapped, wsClient, seqId);

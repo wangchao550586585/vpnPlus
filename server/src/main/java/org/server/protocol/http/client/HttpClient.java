@@ -39,7 +39,7 @@ public class HttpClient implements Runnable {
         this.wsChannel = wsChannel;
         this.targetHost = targetHost;
         this.targetPort = targetPort;
-        this.websocketReceive=websocketReceive;
+        this.websocketReceive = websocketReceive;
     }
 
     public HttpClient connect() {
@@ -95,7 +95,7 @@ public class HttpClient implements Runnable {
         } finally {
             if (Objects.nonNull(remoteSelector)) {
                 try {
-                    LOGGER.info("关闭 channel remoteSelector seqId {} success " , seqId);
+                    LOGGER.info("关闭 channel remoteSelector seqId {} success ", seqId);
                     remoteSelector.close();
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -112,16 +112,22 @@ public class HttpClient implements Runnable {
     public void close() {
         try {
             //删除channel
-            LOGGER.info("4.收到客户端删除http channel client seqId {}",seqId);
-            AbstractHandler attachment = (AbstractHandler) selectionKey.attachment();
-            ChannelWrapped channelWrapped = attachment.getChannelWrapped();
-            channelWrapped.channel().close();
-            channelWrapped.cumulation().clearAll();
+            //这里可能在升级状态中客户端关闭
+            LOGGER.info("4.收到客户端删除http channel client seqId {}", seqId);
+            Object attachment = selectionKey.attachment();
+            if (attachment instanceof HttpClientHandler) {
+                remoteChannel.close();
+            } else {
+                HttpProxyHandler handler = (HttpProxyHandler) attachment;
+                ChannelWrapped channelWrapped = handler.getChannelWrapped();
+                channelWrapped.channel().close();
+                channelWrapped.cumulation().clearAll();
+            }
             //最后删除selector
-            LOGGER.info("5.收到客户端删除http selector client seqId {}",seqId);
+            LOGGER.info("5.收到客户端删除http selector client seqId {}", seqId);
             closeSelector();
-        } catch (IOException e) {
-            LOGGER.error("5.收到客户端删除http selector失败 client seqId "+seqId,e);
+        } catch (Exception e) {
+            LOGGER.error("5.收到客户端删除http selector失败 client seqId " + seqId, e);
             throw new RuntimeException(e);
         }
     }

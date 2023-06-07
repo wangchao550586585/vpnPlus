@@ -53,7 +53,7 @@ public class RecvByteBufAllocator {
      * 连续2次判断缩容才会执行。
      */
     public void autoScaling() {
-        int nextAllocate = Math.max(nextAllocateBufferSize >> 1, MIN_CAPACITY - 1);
+        int nextAllocate = Math.max(nextAllocateBufferSize >> 1, MIN_CAPACITY);
         if (totalBytesRead <= nextAllocate) {
             if (decreaseNow) {
                 LOGGER.debug("执行缩容 之前:{},现在:{} {} ", nextAllocateBufferSize, nextAllocate, uuid);
@@ -63,7 +63,7 @@ public class RecvByteBufAllocator {
                 decreaseNow = true;
             }
         } else if (totalBytesRead >= nextAllocateBufferSize) {
-            nextAllocate = Math.min(nextAllocateBufferSize << 1, MAX_CAPACITY + 1);
+            nextAllocate = Math.min(nextAllocateBufferSize << 1, MAX_CAPACITY);
             LOGGER.debug("执行扩容,之前:{},现在:{} {} ", nextAllocateBufferSize, nextAllocate, uuid);
             nextAllocateBufferSize = nextAllocate;
             decreaseNow = false;

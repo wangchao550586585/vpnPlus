@@ -428,4 +428,46 @@ public class Utils {
     public static int bytes2Int(byte[] bytes) {
         return binary2Int(bytes2Binary(bytes));
     }
+
+    public static long byteToLong(byte[] r) {
+        byte[] result = new byte[8 * 8];
+        for (int i = 0; i < r.length; i++) {
+            byte[] bytes = bytes2Binary(r[i]);
+            copy(i*8,result,bytes);
+        }
+        return Utils.binary2long(result);
+    }
+
+    public static long binary2long(byte[] bytes) {
+        long result = 0;
+        int off = 0;
+        for (int i = bytes.length - 1; i >= 0; i--) {
+            result += (((long) bytes[i]) << off);
+            off++;
+        }
+        return result;
+    }
+
+    /**
+     * int转成8字节,8字节采用long类型装载
+     *
+     * @param code
+     * @return
+     */
+    public static byte[] long2BinaryA4Byte(long code) {
+        byte[] result = new byte[8 * 8];
+        long l1 = code / (1L << 32);
+        long l2 = code % (1L << 32);
+        extracted(result, l1, 0);
+        extracted(result, l2, 32);
+        return result;
+    }
+    private static void extracted(byte[] result, long l1, int offset) {
+        long l2 = l1 / (1L << 16);
+        long l3 = l1 % (1L << 16);
+        byte[] bytes = int2BinaryA2Byte((int) l2);
+        byte[] bytes2 = int2BinaryA2Byte((int) l3);
+        System.arraycopy(bytes, 0, result, offset, bytes.length);
+        System.arraycopy(bytes2, 0, result, offset + bytes.length, bytes2.length);
+    }
 }

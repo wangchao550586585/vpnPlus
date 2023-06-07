@@ -64,7 +64,7 @@ public class Utils {
     }
 
     /**
-     * 二进制转十进制
+     * 字节转十进制
      *
      * @param b
      * @return
@@ -72,7 +72,6 @@ public class Utils {
     public static int byteToIntV2(byte b) {
         return b & 0xFF;
     }
-
 
 
     public static int javaVersion() {
@@ -181,10 +180,11 @@ public class Utils {
 
     /**
      * 01的bit数组转成字节数组到result
+     *
      * @param payloadData
      * @param result
      */
-    public static void binary2Bytes(byte[] payloadData,byte[]result) {
+    public static void binary2Bytes(byte[] payloadData, byte[] result) {
         int r = 0;
         byte[] bytes1 = new byte[8];
         for (int i = 0; i < payloadData.length; i++) {
@@ -215,14 +215,31 @@ public class Utils {
     }
 
     /**
+     * 01转成单个long
+     * 按照大端表示法
+     *
+     * @param bytes
+     * @return
+     */
+    public static long binary2long(byte[] bytes) {
+        long result = 0;
+        int off = 0;
+        for (int i = bytes.length - 1; i >= 0; i--) {
+            result += (((long) bytes[i]) << off);
+            off++;
+        }
+        return result;
+    }
+
+    /**
      * 大端字节，转成单个int
+     *
      * @param bytes
      * @return
      */
     public static int bytes2Int(byte[] bytes) {
         return binary2Int(bytes2Binary(bytes));
     }
-
 
 
     /**
@@ -303,14 +320,38 @@ public class Utils {
      */
     public static byte[] int2BinaryA2Byte(int code) {
         byte[] sendPayloadData;
-        int i = code / 256;
-        int i1 = code % 256;
+        int i = code / (1 << 8);
+        int i1 = code % (1 << 8);
         byte[] bytes = Utils.bytes2Binary((byte) i);
         byte[] bytes2 = Utils.bytes2Binary((byte) i1);
         sendPayloadData = new byte[bytes.length + bytes2.length];
         System.arraycopy(bytes, 0, sendPayloadData, 0, bytes.length);
         System.arraycopy(bytes2, 0, sendPayloadData, bytes.length, bytes2.length);
         return sendPayloadData;
+    }
+
+    /**
+     * int转成8字节,8字节采用long类型装载
+     *
+     * @param code
+     * @return
+     */
+    public static byte[] long2BinaryA4Byte(long code) {
+        byte[] result = new byte[8 * 8];
+        long l1 = code / (1L << 32);
+        long l2 = code % (1L << 32);
+        extracted(result, l1, 0);
+        extracted(result, l2, 32);
+        return result;
+    }
+
+    private static void extracted(byte[] result, long l1, int offset) {
+        long l2 = l1 / (1L << 16);
+        long l3 = l1 % (1L << 16);
+        byte[] bytes = int2BinaryA2Byte((int) l2);
+        byte[] bytes2 = int2BinaryA2Byte((int) l3);
+        System.arraycopy(bytes, 0, result, offset, bytes.length);
+        System.arraycopy(bytes2, 0, result, offset + bytes.length, bytes2.length);
     }
 
     /**
@@ -433,4 +474,18 @@ public class Utils {
         return maskingKey;
     }
 
+    /**
+     * 8字节转long整型
+     *
+     * @param r
+     * @return
+     */
+    public static long byteToLong(byte[] r) {
+        byte[] result = new byte[8 * 8];
+        for (int i = 0; i < r.length; i++) {
+            byte[] bytes = bytes2Binary(r[i]);
+            copy(i*8,result,bytes);
+        }
+        return Utils.binary2long(result);
+    }
 }
