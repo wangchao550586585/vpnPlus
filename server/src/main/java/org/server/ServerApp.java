@@ -4,6 +4,7 @@ package org.server;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.server.reactor.SelectorStrategy;
+import org.server.util.Utils;
 
 import java.net.*;
 import java.nio.channels.*;
@@ -16,6 +17,26 @@ public class ServerApp {
     protected final static Logger LOGGER = LogManager.getLogger(ServerApp.class);
 
     public static void main(String[] args) {
+        //int Length = 65535;
+        //byte[] bytes = Utils.int2BinaryA2Byte(Length);
+        //Length = Utils.binary2Int(bytes);
+        //System.out.println(Arrays.toString(bytes));
+        //System.out.println(Length);
+        //
+        //long Length2 = 4294967298L;
+        //byte[] bytes2 = Utils.long2BinaryA4Byte(Length2);
+        //Length2 = Utils.binary2long(bytes2);
+        //System.out.println(Arrays.toString(bytes2));
+        //System.out.println(Length2);
+        //
+        //long l = Utils.byteToLong(Utils.binary2Bytes(bytes2));
+        //System.out.println(l);
+        //
+        //byte Length3 = 2;
+        //byte[] bytes3 = Utils.bytes2Binary(Length3);
+        //int Length4 = Utils.binary2Int(bytes3);
+        //System.out.println(Arrays.toString(bytes3));
+        //System.out.println(Length4);
         new ServerApp().vpnStart();
     }
 

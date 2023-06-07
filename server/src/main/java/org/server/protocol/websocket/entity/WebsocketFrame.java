@@ -78,7 +78,7 @@ public class WebsocketFrame {
 
     public static void serverSendByte(byte[] payloadData, SocketChannel channel, String uuid) throws IOException {
         //构建长度
-        Pair<byte[], byte[]> pair = getLength(payloadData.length);
+        Pair<byte[], byte[]> pair = getLength(payloadData.length,uuid);
         //“负载字段”是用UTF-8编码的文本数据。
         WebsocketFrame.defaultFrame(WebsocketFrame.OpcodeEnum.SEND_BINARY,
                 DEFAULT_MASK,
@@ -126,7 +126,7 @@ public class WebsocketFrame {
         //测试超过126位
         //payloadData = "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456".getBytes();
         //构建长度
-        Pair<byte[], byte[]> pair = getLength(payloadData.length);
+        Pair<byte[], byte[]> pair = getLength(payloadData.length,uuid);
         WebsocketFrame.defaultFrame(WebsocketFrame.OpcodeEnum.SEND_UTF,
                 DEFAULT_MASK,
                 pair.getFirst(),
@@ -148,7 +148,7 @@ public class WebsocketFrame {
         //发送一个hello
         byte[] payloadData = msg.getBytes();
         //构建长度
-        Pair<byte[], byte[]> pair = getLength(payloadData.length);
+        Pair<byte[], byte[]> pair = getLength(payloadData.length,uuid);
 
         //4字节
         byte[] maskingKey = Utils.buildMask();
@@ -170,24 +170,27 @@ public class WebsocketFrame {
      * @param length
      * @return
      */
-    private static Pair<byte[], byte[]> getLength(int length) {
+    private static Pair<byte[], byte[]> getLength(int length, String uuid) {
         byte[] payloadLenExtended = null;
         byte[] payloadLen = null;
         if (length < 126) {
             payloadLen = Utils.bytes2Binary((byte) length);
-            //这里len只有7位
-            payloadLen = Arrays.copyOfRange(payloadLen, 1, payloadLen.length);
         } else if (length >= 126 && length <= 65535) {
             payloadLen = Utils.bytes2Binary((byte) 126);
-            //这里len只有7位
-            payloadLen = Arrays.copyOfRange(payloadLen, 1, payloadLen.length);
             //如果是126，那么接下来的2个bytes解释为16bit的无符号整形作为负载数据的长度。
             //字节长度量以网络字节顺序表示
             payloadLenExtended = Utils.int2BinaryA2Byte(length);
         } else {
             //如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
             // TODO: 2023/6/1 超过65535太长了，用不着
+            payloadLen = Utils.bytes2Binary((byte) 127);
+
+            payloadLenExtended = Utils.long2BinaryA4Byte(length);
+            byte[] bytes = Utils.binary2Bytes(payloadLenExtended);
+            LOGGER.info("too long seqid {} length {} bytes{}",uuid,length,Arrays.toString(bytes));
         }
+        //这里len只有7位
+        payloadLen = Arrays.copyOfRange(payloadLen, 1, payloadLen.length);
         return new Pair<>(payloadLen, payloadLenExtended);
     }
     private static byte[] getResult(CompositeByteBuf cumulation) {
@@ -210,10 +213,10 @@ public class WebsocketFrame {
         byte[] payloadLenByte = Arrays.copyOfRange(byte1, 1, byte1.length);
         int payloadLen = Utils.binary2Int(payloadLenByte);
         byte[] extendedPlay = null;
-        int finalLen = payloadLen;
+        long finalLen = payloadLen;
 
         if (payloadLen < 126) {
-        } else if (payloadLen >= 126 && payloadLen <= 65535) {
+        } else if (payloadLen == 126) {
             if (remaining < off+2) {
                 cumulation.reset();
                 LOGGER.warn("extendedPlay 数据包不完整");
@@ -227,6 +230,13 @@ public class WebsocketFrame {
         } else {
             //如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
             // TODO: 2023/6/1 超过65535太长了，用不着
+            extendedPlay=new byte[8];
+            for (int i = 0; i < extendedPlay.length; i++) {
+                extendedPlay[i]=cumulation.get();
+            }
+            finalLen = Utils.byteToLong(extendedPlay);
+            off += 8;
+            LOGGER.info("getResult too long  length {} bytes{}",finalLen,Arrays.toString(extendedPlay));
         }
         //maskkey
         byte[] maskKey = null;
@@ -249,7 +259,7 @@ public class WebsocketFrame {
 
         byte[] data = null;
         if (finalLen > 0) {
-            data = new byte[finalLen];
+            data = new byte[(int) finalLen];
             for (int i = 0; i < finalLen; i++) {
                 data[i] = cumulation.get();
             }
@@ -320,7 +330,7 @@ public class WebsocketFrame {
         byte[] payloadLenExtended = null;
         off += 7;
         //表示有多少个字节，而不是01。
-        int payloadLen = Utils.binary2Int(payloadLenBinary);
+        long payloadLen = Utils.binary2Int(payloadLenBinary);
         if (payloadLen <= 125) {
             //如果值为0-125，那么就表示负载数据的长度。
         } else if (payloadLen == 126) {
@@ -332,7 +342,10 @@ public class WebsocketFrame {
             //如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
             payloadLenExtended = Arrays.copyOfRange(frame, off, (off + 8 * 8));
             off += 8 * 8;
-            payloadLen = Utils.binary2Int(payloadLenExtended);
+            payloadLen = Utils.binary2long(payloadLenExtended);
+
+            byte[] bytes = Utils.binary2Bytes(payloadLenExtended);
+            LOGGER.info("parse too long  length {} bytes{}",payloadLen,Arrays.toString(bytes));
         }
         //所有从客户端发往服务端的数据帧都已经与一个包含在这一帧中的32 bit的掩码进行过了运算。
         //如果mask标志位（1 bit）为1，那么这个字段存在，如果标志位为0，那么这个字段不存在。
@@ -342,7 +355,7 @@ public class WebsocketFrame {
             off += 4 * 8;
         }
         //“有效负载数据”是指“扩展数据”和“应用数据”。
-        byte[] payloadData = Arrays.copyOfRange(frame, off, (off + payloadLen * 8));
+        byte[] payloadData = Arrays.copyOfRange(frame, off, (int) (off + payloadLen * 8));
         off += payloadLen * 8;
         return WebsocketFrame.builder()
                 .fin(fin)
@@ -481,7 +494,7 @@ public class WebsocketFrame {
 
     public void write(SocketChannel channel, String uuid) throws IOException {
         byte[] response = build();
-        //LOGGER.info("send frame {} {} ", Arrays.toString(Utils.bytes2Binary(response)), uuid);
+        LOGGER.info("send frame fin {} opcode {} ", fin,opcode);
         ByteBuffer byteBuffer = ByteBuffer.wrap(response);
         channel.write(byteBuffer);
     }
