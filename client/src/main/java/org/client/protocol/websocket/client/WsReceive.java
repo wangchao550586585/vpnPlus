@@ -52,7 +52,6 @@ public class WsReceive extends AbstractHandler {
                             LOGGER.info("receive 0");
                             return;
                         }
-                        dataByte = Utils.binary2Bytes(frame.payloadData());
                         //二进制帧
                         int off = 0;
                         int len = Utils.byteToIntV2(dataByte[off++]);

@@ -95,7 +95,7 @@ public class WebsocketFrame {
     public static void serverSendUTF(String msg, SocketChannel channel, String uuid) throws IOException {
         byte[] payloadData = msg.getBytes();
         //构建长度
-        Pair<byte[], byte[]> pair = getLength(payloadData.length,uuid);
+        Pair<byte[], byte[]> pair = getLength(payloadData.length, uuid);
         WebsocketFrame.defaultFrame(WebsocketFrame.OpcodeEnum.SEND_UTF,
                 DEFAULT_MASK,
                 pair.getFirst(),
@@ -118,7 +118,7 @@ public class WebsocketFrame {
         //发送一个hello
         byte[] payloadData = msg.getBytes();
         //构建长度
-        Pair<byte[], byte[]> pair = getLength(payloadData.length,uuid);
+        Pair<byte[], byte[]> pair = getLength(payloadData.length, uuid);
 
         //4字节
         byte[] maskingKey = Utils.buildMask();
@@ -143,7 +143,7 @@ public class WebsocketFrame {
         off = Utils.copy(off, payload, cmdByte);
         payload[off++] = (byte) seqIdByte.length;
         off = Utils.copy(off, payload, seqIdByte);
-        if (bytes.length>0) {
+        if (bytes.length > 0) {
             off = Utils.copy(off, payload, bytes);
         }
         WebsocketFrame.clientSendByte(payload, remoteChannel, uuid);
@@ -151,7 +151,7 @@ public class WebsocketFrame {
 
     public static void clientSendByte(byte[] payloadData, SocketChannel channel, String uuid) throws IOException {
         //构建长度
-        Pair<byte[], byte[]> pair = getLength(payloadData.length,uuid);
+        Pair<byte[], byte[]> pair = getLength(payloadData.length, uuid);
         //4字节
         byte[] maskingKey = Utils.buildMask();
         payloadData = Utils.mask(payloadData, maskingKey);
@@ -173,7 +173,7 @@ public class WebsocketFrame {
      * @param length
      * @return
      */
-    private static Pair<byte[], byte[]> getLength(int length,String uuid) {
+    private static Pair<byte[], byte[]> getLength(int length, String uuid) {
         byte[] payloadLenExtended = null;
         byte[] payloadLen = null;
         if (length < 126) {
@@ -184,13 +184,13 @@ public class WebsocketFrame {
             //字节长度量以网络字节顺序表示
             payloadLenExtended = Utils.int2BinaryA2Byte(length);
         } else {
-            //如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
+            /*//如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
             // TODO: 2023/6/1 超过65535太长了，用不着
             payloadLen = Utils.bytes2Binary((byte) 127);
 
             payloadLenExtended = Utils.long2BinaryA4Byte(length);
             byte[] bytes = Utils.binary2Bytes(payloadLenExtended);
-            LOGGER.info("getLength too long seqid {} length {} bytes{}",uuid,length,Arrays.toString(bytes));
+            LOGGER.info("getLength too long seqid {} length {} bytes{}",uuid,length,Arrays.toString(bytes));*/
         }
         //这里len只有7位
         payloadLen = Arrays.copyOfRange(payloadLen, 1, payloadLen.length);
@@ -202,23 +202,27 @@ public class WebsocketFrame {
 
         //打印
         byte[] frame = getResult(channelWrapped.cumulation());
+        //表示获取frame索引
+        int index = 0;
         if (frame == null) {
             return null;
         }
-        if (frame[0] != 1) {
+        //1bit fin,3bit rsv,4bit opencode
+        byte[] finByte = Utils.bytes2Binary(frame[index++]);
+        //表示这是消息的最后一个片段。第一个片段也有可能是最后一个片段。
+        int off = 0;
+        byte fin = finByte[off++];
+        if (fin != 1) {
             LOGGER.info("receive frame fin {}", Arrays.toString(new byte[]{frame[0]
-            ,frame[1],frame[2],frame[3],frame[4],frame[5],frame[6],frame[7]}));
+                    , frame[1], frame[2], frame[3], frame[4], frame[5], frame[6], frame[7]}));
             LOGGER.error("fin 不为1");
             return null;
         }
         //String s = Utils.buildBinaryReadable(frame);
         //LOGGER.info("receive frame {} {}", s, channelWrapped.uuid());
-        //表示这是消息的最后一个片段。第一个片段也有可能是最后一个片段。
-        int off = 0;
-        byte fin = frame[off];
+
         //必须设置为0，除非扩展了非0值含义的扩展。如果收到了一个非0值但是没有扩展任何非0值的含义，接收终端必须断开WebSocket连接。
-        off++;
-        byte[] rsv = Arrays.copyOfRange(frame, off, off + 3);
+        byte[] rsv = Arrays.copyOfRange(finByte, off, off + 3);
         off += 3;
         for (int i = 0; i < rsv.length; i++) {
             if (rsv[i] != 0x00) {
@@ -226,47 +230,49 @@ public class WebsocketFrame {
                 return null;
             }
         }
-        byte[] opcode = Arrays.copyOfRange(frame, off, off + 4);
-        off += 4;
+        byte[] opcode = Arrays.copyOfRange(finByte, off, off + 4);
+        off = 0;
+
+        //1bit mask,7bit payload
         //定义“有效负载数据”是否添加掩码。默认1，掩码的键值存在于Masking-Key中
-        byte mask = frame[off];
-        off++;
-        byte[] payloadLenBinary = Arrays.copyOfRange(frame, off, off + 7);
+        byte[]  tempByte= Utils.bytes2Binary(frame[index++]);
+        byte mask = tempByte[off++];
+        byte[] payloadLenBinary = Arrays.copyOfRange(tempByte, off, off + 7);
         byte[] payloadLenExtended = null;
-        off += 7;
+        off =0;
         //表示有多少个字节，而不是01。
         long payloadLen = Utils.binary2Int(payloadLenBinary);
         if (payloadLen <= 125) {
             //如果值为0-125，那么就表示负载数据的长度。
         } else if (payloadLen == 126) {
-            //如果是126，那么接下来的2个bytes解释为16bit的无符号整形作为负载数据的长度。
-            payloadLenExtended = Arrays.copyOfRange(frame, off, (off + 2 * 8));
-            off += 2 * 8;
-            payloadLen = Utils.binary2Int(payloadLenExtended);
+            payloadLenExtended= new byte[]{frame[index++], frame[index++]};
+            payloadLen =Utils.bytes2Int(payloadLenExtended);
         } else {
-            //如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
+           /* //如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
             payloadLenExtended = Arrays.copyOfRange(frame, off, (off + 8 * 8));
             off += 8 * 8;
             payloadLen = Utils.binary2long(payloadLenExtended);
 
             byte[] bytes = Utils.binary2Bytes(payloadLenExtended);
-            LOGGER.info("parse too long  length {} bytes{}",payloadLen,Arrays.toString(bytes));
+            LOGGER.info("parse too long  length {} bytes{}", payloadLen, Arrays.toString(bytes));*/
         }
         //所有从客户端发往服务端的数据帧都已经与一个包含在这一帧中的32 bit的掩码进行过了运算。
         //如果mask标志位（1 bit）为1，那么这个字段存在，如果标志位为0，那么这个字段不存在。
         byte[] maskingKey = null;
         if (mask == 1) {
-            maskingKey = Arrays.copyOfRange(frame, off, (off + 4 * 8));
-            off += 4 * 8;
+            maskingKey = Arrays.copyOfRange(frame, index, (index + 4));
+            index += 4 ;
         }
+        LOGGER.info("after parse too long  index {}", index);
         //“有效负载数据”是指“扩展数据”和“应用数据”。
         byte[] payloadData = new byte[0];
         try {
-            payloadData = Arrays.copyOfRange(frame, off, (int) (off + payloadLen * 8));
+            payloadData = Arrays.copyOfRange(frame, index, (int) (index + payloadLen));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        off += payloadLen * 8;
+        index += payloadLen;
+        LOGGER.info("before parse too long  index {}", index);
         return WebsocketFrame.builder()
                 .fin(fin)
                 .rsv(rsv)
@@ -278,6 +284,12 @@ public class WebsocketFrame {
                 .payloadData(payloadData);
     }
 
+    /**
+     * 获取解析之后的结果字节显示。
+     *
+     * @param cumulation
+     * @return
+     */
     private static byte[] getResult(CompositeByteBuf cumulation) {
         //可读数量
         int remaining = cumulation.remaining();
@@ -312,7 +324,7 @@ public class WebsocketFrame {
             off += 2;
             finalLen = Utils.byteToIntV2(extendedPlay[0]) * 256 + Utils.byteToIntV2(extendedPlay[1]);
         } else {
-            //如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
+            /*//如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
             // TODO: 2023/6/1 超过65535太长了，用不着
             extendedPlay=new byte[8];
             for (int i = 0; i < extendedPlay.length; i++) {
@@ -320,7 +332,7 @@ public class WebsocketFrame {
             }
             finalLen = Utils.byteToLong(extendedPlay);
             off += 8;
-            LOGGER.info("getResult too long  length {} bytes{}",finalLen,Arrays.toString(extendedPlay));
+            LOGGER.info("getResult too long  length {} bytes{}",finalLen,Arrays.toString(extendedPlay));*/
         }
         //maskkey
         byte[] maskKey = null;
@@ -344,6 +356,7 @@ public class WebsocketFrame {
         byte[] data = null;
         if (finalLen > 0) {
             data = new byte[(int) finalLen];
+            LOGGER.info("getResult too long  data.length {}", data.length);
             for (int i = 0; i < finalLen; i++) {
                 data[i] = cumulation.get();
             }
@@ -359,16 +372,12 @@ public class WebsocketFrame {
         if (Objects.nonNull(maskKey)) {
             off = copy(off, fra, maskKey);
         }
+        LOGGER.info("after getResult too long  off {}", off);
         if (Objects.nonNull(data)) {
             off = copy(off, fra, data);
         }
-        //fra转成binnary
-        byte[] result = new byte[off * 8];
-        for (int i = 0; i < off; i++) {
-            byte[] dest = Utils.bytes2Binary(fra[i]);
-            System.arraycopy(dest, 0, result, i * 8, dest.length);
-        }
-        return result;
+        LOGGER.info("before getResult too long  off {}", off);
+        return fra;
     }
 
     public byte[] build() {

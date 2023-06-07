@@ -91,7 +91,7 @@ public class WebsocketReceive extends AbstractHandler {
                         break;
                     case 0x02:
                         //二进制帧
-                        byte[] dataByte = Utils.unmaskBytes(tempPayloadData, frame.maskingKey());
+                        byte[] dataByte = Utils.mask(tempPayloadData, frame.maskingKey());
                         int off = 0;
                         int len = Utils.byteToIntV2(dataByte[off++]);
                         byte[] data = Arrays.copyOfRange(dataByte, off, off + len);
