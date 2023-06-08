@@ -183,14 +183,13 @@ public class WebsocketFrame {
             //如果是126，那么接下来的2个bytes解释为16bit的无符号整形作为负载数据的长度。
             //字节长度量以网络字节顺序表示
             payloadLenExtended = Utils.int2BinaryA2Byte(length);
+            LOGGER.info("getResult  long  length {}",length);
         } else {
-            /*//如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
             // TODO: 2023/6/1 超过65535太长了，用不着
+            //如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
             payloadLen = Utils.bytes2Binary((byte) 127);
-
             payloadLenExtended = Utils.long2BinaryA4Byte(length);
-            byte[] bytes = Utils.binary2Bytes(payloadLenExtended);
-            LOGGER.info("getLength too long seqid {} length {} bytes{}",uuid,length,Arrays.toString(bytes));*/
+            LOGGER.info("too long seqid {} length {} bytes{}",uuid,length,Arrays.toString(Utils.binary2Bytes(payloadLenExtended)));
         }
         //这里len只有7位
         payloadLen = Arrays.copyOfRange(payloadLen, 1, payloadLen.length);
