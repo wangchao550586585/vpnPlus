@@ -203,4 +203,12 @@ public class CompositeByteBuf {
         }
     }
 
+    public void getReadIndex() {
+        if (buffers.size()>0){
+            for (int i = readIndex; i <buffers.size(); i++) {
+                ByteBuffer byteBuffer = buffers.get(i);
+                LOGGER.info("readIndex {} position{} remaining {}",i,byteBuffer.position(),byteBuffer.remaining());
+            }
+        }
+    }
 }

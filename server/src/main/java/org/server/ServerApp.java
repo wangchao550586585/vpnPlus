@@ -43,7 +43,7 @@ public class ServerApp {
     private void vpnStart() {
         try {
             ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
-            serverSocketChannel.socket().bind(new InetSocketAddress(8000));
+            serverSocketChannel.socket().bind(new InetSocketAddress(8070));
             LOGGER.info("MasterReactor bind success");
             serverSocketChannel.configureBlocking(false);
             Selector masterReactor = Selector.open();

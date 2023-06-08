@@ -12,12 +12,16 @@ import org.server.util.Utils;
 import javax.rmi.CORBA.Util;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channel;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import static org.server.protocol.websocket.entity.WebsocketFrame.DEFAULT_MASK;
@@ -46,16 +50,17 @@ public class WebsocketReceive extends AbstractHandler {
     Map<Integer, HttpClient> channelMap = new ConcurrentHashMap<>();
     private final Request request;
     private String host = "127.0.0.1";
-    private int port = 8081;
+    private int port = 8060;
 
     public WebsocketReceive(ChannelWrapped channelWrapped, Request request) {
         super(channelWrapped);
         this.request = request;
+        new Thread(this::doWrite).start();
     }
 
     @Override
     protected void exec() throws Exception {
-        while (true){
+        while (true) {
             try {
                 //没有读到对应的终止符则返回接着继续读。
         /*客户端必须在它发送到服务器的所有帧中添加掩码（Mask）（具体细节见5.3节）。
@@ -81,13 +86,13 @@ public class WebsocketReceive extends AbstractHandler {
                     case 0x00:
                         break;
                     case 0x01:
-                        //“负载字段”是用UTF-8编码的文本数据。
+                       /* //“负载字段”是用UTF-8编码的文本数据。
                         if (tempPayloadData.length > 0) {
                             msg = Utils.unmask(tempPayloadData, frame.maskingKey());
                             LOGGER.info("receive msg {} {} ", msg, uuid);
                         }
                         //响应数据，掩码
-                        WebsocketFrame.serverSendUTF("接收成功", channelWrapped.channel(), uuid);
+                        WebsocketFrame.serverSendUTF("接收成功", channelWrapped.channel(), uuid);*/
                         break;
                     case 0x02:
                         //二进制帧
@@ -107,7 +112,7 @@ public class WebsocketReceive extends AbstractHandler {
                         handlerRequest(cmd, seqId, data);
                         break;
                     case 0x08:
-                        //可省略关闭帧，也会自动关闭
+                        /*//可省略关闭帧，也会自动关闭
                         //1:解码
                         if (tempPayloadData.length > 0) {
                             if (frame.mask() == 1) {
@@ -134,14 +139,14 @@ public class WebsocketReceive extends AbstractHandler {
                         //这里len只有7位
                         sendPayloadLen = Arrays.copyOfRange(sendPayloadLen, 1, sendPayloadLen.length);
                         //响应关闭
-                        WebsocketFrame.defaultFrame(WebsocketFrame.OpcodeEnum.CLOSE, DEFAULT_MASK, sendPayloadLen, null, null, sendPayloadData, channelWrapped.channel(), channelWrapped.uuid());
+                        WebsocketFrame.defaultFrame(WebsocketFrame.OpcodeEnum.CLOSE, DEFAULT_MASK, sendPayloadLen, null, null, sendPayloadData, channelWrapped.channel(), channelWrapped.uuid());*/
                         break;
                     case 0x09:
                         /**
                          * 如果收到了一个心跳Ping帧，那么终端必须发送一个心跳Pong 帧作为回应，除非已经收到了一个关闭帧。终端应该尽快回复Pong帧。
                          */
-                        LOGGER.info("receive ping channelSize {} channel seqids {}",channelMap.size(),channelMap.keySet());
-                        WebsocketFrame.defaultFrame(WebsocketFrame.OpcodeEnum.PONG, DEFAULT_MASK, null, null, null, null, channelWrapped.channel(), channelWrapped.uuid());
+                        LOGGER.info("receive ping channelSize {} channel seqids {}", channelMap.size(), channelMap.keySet());
+                        WebsocketFrame.defaultFrame(WebsocketFrame.OpcodeEnum.PONG, DEFAULT_MASK, null, null, null, null, this, channelWrapped.uuid());
                         break;
                     default:
                         break;
@@ -168,27 +173,27 @@ public class WebsocketReceive extends AbstractHandler {
             LOGGER.info("connect proxy http success,seqId {}", seqId);
         } else if (cmd.equals("write")) {
             HttpClient httpClient = channelMap.get(seqId);
-            if (Objects.nonNull(httpClient)){
+            if (Objects.nonNull(httpClient)) {
                 httpClient.write(ByteBuffer.wrap(data));
             }
         } else if (cmd.equals("close")) {
-            LOGGER.info("3.收到客户端删除channel client seqId {}",seqId);
-            Optional.ofNullable(channelMap.remove(seqId)).ifPresent(it->{
+            LOGGER.info("3.收到客户端删除channel client seqId {}", seqId);
+            Optional.ofNullable(channelMap.remove(seqId)).ifPresent(it -> {
                 //关闭channel和selector
                 it.close();
                 byte[] cmdByte = "closeAck".getBytes();
                 //占用2字节
                 byte[] seqIdByte = Utils.int2Byte(seqId);
-                LOGGER.info("6.收到客户端ACK client seqId {}",seqId);
+                LOGGER.info("6.收到客户端ACK client seqId {}", seqId);
                 try {
-                    WebsocketFrame.write(cmdByte, seqIdByte, new byte[0], seqId + "", channelWrapped.channel());
+                    WebsocketFrame.write(cmdByte, seqIdByte, new byte[0], seqId + "", this);
                 } catch (IOException e) {
-                    LOGGER.info("6.收到客户端ACK 失败 client seqId {}",seqId);
+                    LOGGER.info("6.收到客户端ACK 失败 client seqId {}", seqId);
                     throw new RuntimeException(e);
                 }
             });
-        }else if (cmd.equals("writeAck")) {
-            LOGGER.error("7.主动收到客户端,发送ACK失败 server seqId {}",seqId);
+        } else if (cmd.equals("writeAck")) {
+            LOGGER.error("7.主动收到客户端,发送ACK失败 server seqId {}", seqId);
         }
     }
 

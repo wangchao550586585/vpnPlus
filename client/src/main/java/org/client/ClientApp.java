@@ -22,8 +22,7 @@ public class ClientApp {
 
     private void vpnStart() {
         try {
-            WsClient wsClient = new WsClient("127.0.0.1", 8000).connect();
-
+            WsClient wsClient = new WsClient("18.166.208.34", 8070).connect();
             ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
             serverSocketChannel.socket().bind(new InetSocketAddress(80));
             LOGGER.info("MasterReactor bind success");

@@ -20,14 +20,14 @@ import java.util.Objects;
 public class HttpProxyHandler extends AbstractHandler {
     final Request request;
     final Integer seqId;
-    final SocketChannel wsChannel;
+    final WebsocketReceive websocketReceive;
     final HttpClient httpClient;
 
-    public HttpProxyHandler(ChannelWrapped channelWrapped, Request request, Integer seqId, SocketChannel wsChannel, HttpClient httpClient) {
+    public HttpProxyHandler(ChannelWrapped channelWrapped, Request request, Integer seqId, WebsocketReceive websocketReceive, HttpClient httpClient) {
         super(channelWrapped);
         this.request = request;
         this.seqId = seqId;
-        this.wsChannel = wsChannel;
+        this.websocketReceive = websocketReceive;
         this.httpClient = httpClient;
     }
 
@@ -48,7 +48,7 @@ public class HttpProxyHandler extends AbstractHandler {
             LOGGER.info("info is 0");
             return;
         }
-        WebsocketFrame.write(cmdByte, seqIdByte, bytes, uuid, wsChannel);
+        WebsocketFrame.write(cmdByte, seqIdByte, bytes, uuid, websocketReceive);
     }
 
     @Override
@@ -63,7 +63,7 @@ public class HttpProxyHandler extends AbstractHandler {
         byte[] seqIdByte = Utils.int2Byte(seqId);
         try {
             LOGGER.info("3.主动通知客户端关闭channel server seqId {}",seqId);
-            WebsocketFrame.write(cmdByte, seqIdByte, new byte[0], seqId + "", wsChannel);
+            WebsocketFrame.write(cmdByte, seqIdByte, new byte[0], seqId + "", websocketReceive);
         } catch (IOException e) {
             LOGGER.error("3.主动通知客户端关闭channel失败 server seqId "+seqId,e);
             throw new RuntimeException(e);

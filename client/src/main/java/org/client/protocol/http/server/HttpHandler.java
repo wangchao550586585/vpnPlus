@@ -41,8 +41,8 @@ public class HttpHandler extends AbstractHandler {
         String uuid = channelWrapped.uuid();
         String[] split = request.getStartLine().getRequestTarget().split(":");
         int seqId = wsClient.seqId();
-        LOGGER.info("IPV4 host:{} remoteAddress:{} {} seqId {}", request.getRequestHeaders().getHost(), channelWrapped.channel().getRemoteAddress(), channelWrapped.uuid(),seqId);
-        wsClient.connect(split[0], split[1], uuid, seqId,this);
+        LOGGER.info("IPV4 host:{} remoteAddress:{} {} seqId {}", request.getRequestHeaders().getHost(), channelWrapped.channel().getRemoteAddress(), channelWrapped.uuid(), seqId);
+        wsClient.connect(split[0], split[1], uuid, seqId, this);
         //更换附件
         DeliverHandler deliverHandler = new DeliverHandler(channelWrapped, wsClient, seqId);
         channelWrapped.key().attach(deliverHandler);
@@ -112,7 +112,6 @@ public class HttpHandler extends AbstractHandler {
     }
 
 
-
     /**
      * 解析key2=value1&key2=value2成map
      *
@@ -124,7 +123,9 @@ public class HttpHandler extends AbstractHandler {
         String[] split = params.split("&");
         for (int i = 0; i < split.length; i++) {
             String[] keyVal = split[i].split("=");
-            paramsMap.put(keyVal[0], keyVal[1]);
+            if (keyVal.length > 1) {
+                paramsMap.put(keyVal[0], keyVal[1]);
+            }
         }
         return paramsMap;
     }

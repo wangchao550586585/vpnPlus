@@ -7,7 +7,13 @@ import org.server.reactor.RecvByteBufAllocator;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.util.Objects;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 public abstract class AbstractHandler implements Runnable {
     protected final Logger LOGGER = LogManager.getLogger(this.getClass());
@@ -92,4 +98,116 @@ public abstract class AbstractHandler implements Runnable {
     }
 
     protected abstract void exec() throws Exception;
+
+
+    //1.计算要发送的数据大小
+    //2.将数据添加链表末尾
+    //3.查看是否超过限制，超过则发送不可写事件。
+    //4.将flush指针指向头结点，指向头结点的指针重置为null
+    //5.将所有节点设置为不可取消，当更新后的水位线低于低水位线 `DEFAULT_LOW_WATER_MARK = 32 * 1024` 时，就将当前 channel 设置为可写状态。
+    //6.判断channel是否打开和连接
+    //7.循环刷出数据，数据为空则重置opwrite事件
+    //每次发送2048数据，<0则注册opwrite事件，每次发送后更新刷入容量。2048可修改。
+    //单个节点全部写完则删除节点
+    //退出循环时<16则说明
+    private LinkedBlockingQueue<ByteBuffer> linkedBlockingQueue = new LinkedBlockingQueue<>();
+
+    public void write(ByteBuffer byteBuffer) {
+        linkedBlockingQueue.add(byteBuffer);
+        //1、查看状态是否可写，可写则刷出数据。不可写则添加到缓冲区。
+    }
+
+    private final ReentrantLock takeLock = new ReentrantLock();
+    private final Condition condition = takeLock.newCondition();
+
+    public void doWrite() {
+        try {
+            //是否被标记了写事件
+            boolean isWrite=false;
+            while (true) {
+                ByteBuffer poll = linkedBlockingQueue.peek();
+                if (Objects.isNull(poll)&&isWrite) {
+                    //说明读取结束，则删除写事件
+                    incompleteWrite(false);
+                    LOGGER.info("删除写模式");
+                    isWrite=false;
+                } else if(Objects.nonNull(poll)) {
+                    int localWrittenBytes = channelWrapped.channel().write(poll);
+                    if (localWrittenBytes <= 0) {
+                        //如果依旧可读，则放入链表头部，继续发送.
+                        //2.返回值<=0说明缓冲区已满，则设置状态为不可写，并注册写事件。
+                        if (!isWrite){
+                            incompleteWrite(true);
+                            isWrite=true;
+                            LOGGER.info("缓冲区数据过多，切换写模式");
+                        }
+                        //自旋等待被唤醒。
+                        await();
+                    }else{
+                        if (poll.remaining()<=0){
+                            linkedBlockingQueue.remove();
+                        }else {
+                            LOGGER.info("数据没写完");
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void await() {
+        try {
+            takeLock.lock();
+            condition.await();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } finally {
+            takeLock.unlock();
+        }
+
+    }
+
+    public void signal() {
+        try {
+            takeLock.lock();
+            condition.signal();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            takeLock.unlock();
+        }
+    }
+
+    public void incompleteWrite(boolean setOpWrite) {
+        if (setOpWrite) {
+            setOpWrite();
+        } else {
+            clearOpWrite();
+        }
+    }
+
+    public void clearOpWrite() {
+        SelectionKey key = channelWrapped.key();
+        if (!key.isValid()) {
+            return;
+        }
+        final int interestOps = key.interestOps();
+        if ((interestOps & SelectionKey.OP_WRITE) != 0) {
+            key.interestOps(interestOps & ~SelectionKey.OP_WRITE);
+        }
+    }
+
+    public void setOpWrite() {
+        SelectionKey key = channelWrapped.key();
+        if (!key.isValid()) {
+            return;
+        }
+        final int interestOps = key.interestOps();
+        if ((interestOps & SelectionKey.OP_WRITE) == 0) {
+            key.interestOps(interestOps | SelectionKey.OP_WRITE);
+        }
+    }
+
 }

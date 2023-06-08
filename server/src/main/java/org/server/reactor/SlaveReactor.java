@@ -209,6 +209,12 @@ public class SlaveReactor implements Runnable {
             Runnable runnable = (Runnable) key.attachment();
             runnable.run();
         }
+        if (key.isWritable()){
+            LOGGER.info("写模式");
+            AbstractHandler runnable = (AbstractHandler) key.attachment();
+            //唤醒写
+            runnable.signal();
+        }
     }
 
     public void register(SocketChannel childChannel) {

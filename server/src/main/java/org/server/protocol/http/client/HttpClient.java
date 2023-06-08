@@ -53,7 +53,7 @@ public class HttpClient implements Runnable {
             this.remoteSelector = Selector.open();
             selectionKey = remoteChannel.register(remoteSelector, 0);
             ChannelWrapped channelWrapped = ChannelWrapped.builder().key(selectionKey).channel(remoteChannel);
-            Runnable handler = new HttpClientHandler(channelWrapped, seqId, targetHost, targetPort, wsChannel, this);
+            Runnable handler = new HttpClientHandler(channelWrapped, seqId, targetHost, targetPort, websocketReceive, this);
             selectionKey.attach(handler);
             selectionKey.interestOps(SelectionKey.OP_WRITE);
             LOGGER.debug("remote register success");

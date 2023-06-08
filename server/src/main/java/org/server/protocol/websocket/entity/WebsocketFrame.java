@@ -4,6 +4,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.server.entity.ChannelWrapped;
 import org.server.entity.CompositeByteBuf;
+import org.server.protocol.websocket.server.WebsocketReceive;
 import org.server.util.Pair;
 import org.server.util.Utils;
 
@@ -62,7 +63,7 @@ public class WebsocketFrame {
         return new WebsocketFrame();
     }
 
-    public static void write(byte[] cmdByte, byte[] seqIdByte, byte[] bytes, String uuid, SocketChannel remoteChannel) throws IOException {
+    public static void write(byte[] cmdByte, byte[] seqIdByte, byte[] bytes, String uuid, WebsocketReceive websocketReceive) throws IOException {
         //存储字节长度
         byte[] payload = new byte[cmdByte.length + seqIdByte.length + bytes.length + 2];
         int off = 0;
@@ -73,10 +74,10 @@ public class WebsocketFrame {
         if (bytes.length>0) {
             off = Utils.copy(off, payload, bytes);
         }
-        WebsocketFrame.serverSendByte(payload, remoteChannel, uuid);
+        WebsocketFrame.serverSendByte(payload, websocketReceive, uuid);
     }
 
-    public static void serverSendByte(byte[] payloadData, SocketChannel channel, String uuid) throws IOException {
+    public static void serverSendByte(byte[] payloadData, WebsocketReceive websocketReceive, String uuid) throws IOException {
         //构建长度
         Pair<byte[], byte[]> pair = getLength(payloadData.length,uuid);
         //“负载字段”是用UTF-8编码的文本数据。
@@ -86,7 +87,7 @@ public class WebsocketFrame {
                 pair.getSecond(),
                 null,
                 payloadData,
-                channel,
+                websocketReceive,
                 uuid);
     }
 
@@ -102,7 +103,7 @@ public class WebsocketFrame {
      * @param uuid
      * @throws IOException
      */
-    public static void defaultFrame(OpcodeEnum opcode, byte mask, byte[] payloadLen, byte[] payloadLenExtended, byte[] maskingKey, byte[] payloadData, SocketChannel channel, String uuid) throws IOException {
+    public static void defaultFrame(OpcodeEnum opcode, byte mask, byte[] payloadLen, byte[] payloadLenExtended, byte[] maskingKey, byte[] payloadData, WebsocketReceive websocketReceive, String uuid) throws IOException {
         WebsocketFrame.builder()//构建状态行
                 .fin(DEFAULT_FIN)//最后一个包含数据的帧的 FIN （ FIN 帧）字段必须设置为 1 。
                 .rsv(DEFAULT_RSV)//固定
@@ -112,7 +113,7 @@ public class WebsocketFrame {
                 .payloadLenExtended(payloadLenExtended)
                 .maskingKey(maskingKey)
                 .payloadData(payloadData)//构建响应体
-                .write(channel, uuid);
+                .write(websocketReceive, uuid);
     }
 
     /**
@@ -121,7 +122,7 @@ public class WebsocketFrame {
      * @param msg
      * @throws IOException
      */
-    public static void serverSendUTF(String msg, SocketChannel channel, String uuid) throws IOException {
+/*    public static void serverSendUTF(String msg, SocketChannel channel, String uuid) throws IOException {
         byte[] payloadData = msg.getBytes();
         //测试超过126位
         //payloadData = "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456".getBytes();
@@ -135,7 +136,7 @@ public class WebsocketFrame {
                 payloadData,
                 channel,
                 uuid);
-    }
+    }*/
     /**
      * 客户端默认发送
      *
@@ -144,7 +145,7 @@ public class WebsocketFrame {
      * @param uuid
      * @throws IOException
      */
-    public static void clientSendUTF(String msg, SocketChannel channel, String uuid) throws IOException {
+/*    public static void clientSendUTF(String msg, SocketChannel channel, String uuid) throws IOException {
         //发送一个hello
         byte[] payloadData = msg.getBytes();
         //构建长度
@@ -163,7 +164,7 @@ public class WebsocketFrame {
                 payloadData,
                 channel,
                 uuid);
-    }
+    }*/
     /**
      * 获取长度和扩展字段
      *
@@ -180,14 +181,13 @@ public class WebsocketFrame {
             //如果是126，那么接下来的2个bytes解释为16bit的无符号整形作为负载数据的长度。
             //字节长度量以网络字节顺序表示
             payloadLenExtended = Utils.int2BinaryA2Byte(length);
+            LOGGER.info("getResult  long  length {}",length);
         } else {
-          /*  //如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
             // TODO: 2023/6/1 超过65535太长了，用不着
+            //如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
             payloadLen = Utils.bytes2Binary((byte) 127);
-
             payloadLenExtended = Utils.long2BinaryA4Byte(length);
-            byte[] bytes = Utils.binary2Bytes(payloadLenExtended);
-            LOGGER.info("too long seqid {} length {} bytes{}",uuid,length,Arrays.toString(bytes));*/
+            LOGGER.info("too long seqid {} length {} bytes{}",uuid,length,Arrays.toString(Utils.binary2Bytes(payloadLenExtended)));
         }
         //这里len只有7位
         payloadLen = Arrays.copyOfRange(payloadLen, 1, payloadLen.length);
@@ -499,11 +499,11 @@ public class WebsocketFrame {
         return payloadData;
     }
 
-    public void write(SocketChannel channel, String uuid) throws IOException {
+    public void write(WebsocketReceive websocketReceive, String uuid) throws IOException {
         byte[] response = build();
-        LOGGER.info("send frame fin {} opcode {} ", fin,opcode);
         ByteBuffer byteBuffer = ByteBuffer.wrap(response);
-        channel.write(byteBuffer);
+        //LOGGER.info("send frame {} {} ", Utils.buildBinaryReadable(Utils.bytes2Binary(byteBuffer)), uuid);
+        websocketReceive.write(byteBuffer);
     }
 
     @Override

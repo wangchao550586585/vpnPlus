@@ -5,6 +5,10 @@ monitorinterval用于指定log4j自动重新配置的监测间隔时间，单位
 All < Trace < Debug < Info < Warn < Error < Fatal < OFF
 -->
 <Configuration status="OFF">
+    <Properties> <!-- 配置日志文件输出目录，此配置将日志输出到tomcat根目录下的指定文件夹 -->
+        <Property name="LOG_HOME">./
+        </Property>
+    </Properties>
     <Appenders>
         <!--
              日志输出地方
@@ -15,6 +19,30 @@ All < Trace < Debug < Info < Warn < Error < Fatal < OFF
             <!-- 日志格式 -->
             <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %highlight{%-5level %logger{36} - %msg%n}"/>
         </Console>
+
+        <!-- INFO级别日志 -->
+        <RollingFile name="info_appender" immediateFlush="true"
+                     fileName="${LOG_HOME}/info.log" filePattern="${LOG_HOME}/info/info - %d{yyyy-MM-dd HH_mm_ss}-%i.log">
+                     <!--fileName="${LOG_HOME}/info.log" filePattern="${LOG_HOME}/info/info - %d{yyyy-MM-dd HH_mm_ss}.log.gz">-->
+            <PatternLayout>
+                <pattern>%5p [%t] %d{yyyy-MM-dd HH:mm:ss} (%F:%L) %m%n</pattern>
+            </PatternLayout>
+            <Policies><!-- 每个日志文件最大2MB ; -->
+                <SizeBasedTriggeringPolicy size="10MB" />
+
+                <!-- 如果启用此配置，则日志会按文件名生成新压缩文件， 即如果filePattern配置的日期格式为 %d{yyyy-MM-dd HH}
+                    ，则每小时生成一个压缩文件， 如果filePattern配置的日期格式为 %d{yyyy-MM-dd} ，则天生成一个压缩文件 -->
+                <TimeBasedTriggeringPolicy interval="1"
+                                           modulate="true" />
+
+            </Policies>
+            <Filters>
+                <ThresholdFilter level="warn" onMatch="DENY"
+                                 onMismatch="NEUTRAL" />
+                <ThresholdFilter level="info" onMatch="ACCEPT"
+                                 onMismatch="DENY" />
+            </Filters>
+        </RollingFile>
     </Appenders>
 
     <Loggers>
@@ -22,6 +50,7 @@ All < Trace < Debug < Info < Warn < Error < Fatal < OFF
         <Root level="Info">
             <!-- Console的name -->
             <AppenderRef ref="Console"/>
+<!--            <AppenderRef ref="info_appender" />-->
         </Root>
     </Loggers>
 </Configuration>
