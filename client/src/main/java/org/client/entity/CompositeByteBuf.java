@@ -137,15 +137,6 @@ public class CompositeByteBuf {
         return bytes;
     }
 
-    /**
-     * 打印尚未读取的数据
-     */
-    public void print(String uuid) {
-        for (int i = readIndex; i < buffers.size(); i++) {
-            Utils.printString(buffers.get(i), uuid);
-        }
-    }
-
     public void remove(int len) {
         for (int i = buffers.size() - 1; i >= 0 && len > 0; i--) {
             ByteBuffer byteBuffer = buffers.get(i);
@@ -164,14 +155,6 @@ public class CompositeByteBuf {
 
     }
 
-    /**
-     * 将所有byte转成字符串
-     *
-     * @return
-     */
-    public String readAll() {
-        return read(remaining());
-    }
 
     /**
      * 将所有byte转成字符串
@@ -182,33 +165,5 @@ public class CompositeByteBuf {
         return readByte(remaining());
     }
 
-    /**
-     * 数据写入本地
-     *
-     * @param fileChannel
-     */
-    public void write(FileChannel fileChannel) {
-        try {
-            for (int i = readIndex; i < buffers.size(); i++) {
-                fileChannel.write(buffers.get(i));
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } finally {
-            try {
-                fileChannel.close();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
 
-    public void getReadIndex() {
-        if (buffers.size()>0){
-            for (int i = readIndex; i <buffers.size(); i++) {
-                ByteBuffer byteBuffer = buffers.get(i);
-                LOGGER.info("readIndex {} position{} remaining {}",i,byteBuffer.position(),byteBuffer.remaining());
-            }
-        }
-    }
 }

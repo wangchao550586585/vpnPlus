@@ -36,10 +36,10 @@ public class Heartbeat implements Runnable {
             WebsocketFrame.defaultFrame(WebsocketFrame.OpcodeEnum.PING, DEFAULT_HAS_MASK, null, null, Utils.buildMask(), null, this.channelWrapped.channel(), uuid);
             num++;
             //15秒没连接上，则退出。
-/*            if (num >= 3) {
+            if (num >= 3) {
                 channelWrapped.channel().close();
                 System.exit(0);
-            }*/
+            }
         } catch (IOException e) {
             LOGGER.error("ping error ", e);
             throw new RuntimeException(e);

@@ -185,7 +185,6 @@ public class WebsocketFrame {
             payloadLenExtended = Utils.int2BinaryA2Byte(length);
             LOGGER.info("getResult  long  length {}",length);
         } else {
-            // TODO: 2023/6/1 超过65535太长了，用不着
             //如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
             payloadLen = Utils.bytes2Binary((byte) 127);
             payloadLenExtended = Utils.long2BinaryA4Byte(length);
@@ -278,7 +277,7 @@ public class WebsocketFrame {
     private static byte[] getResult(CompositeByteBuf cumulation) {
         //可读数量
         int remaining = cumulation.remaining();
-        cumulation.getReadIndex();
+
         cumulation.mark();
         if (remaining < 2) {
             LOGGER.warn("最少要2位数据包不完整 {} ", remaining);
@@ -293,7 +292,7 @@ public class WebsocketFrame {
         if (finByte[0] != 1) {
             LOGGER.error("fin 不为1");
             cumulation.reset();
-            cumulation.getReadIndex();
+
             return null;
         }
         //校验code
@@ -302,7 +301,7 @@ public class WebsocketFrame {
             if (rsv[i] != 0x00) {
                 LOGGER.info("rsv 前面三位必须为0");
                 cumulation.reset();
-                cumulation.getReadIndex();
+
                 return null;
             }
         }
@@ -322,7 +321,7 @@ public class WebsocketFrame {
             if (remaining < off + 2) {
                 cumulation.reset();
                 LOGGER.warn("extendedPlay 数据包不完整");
-                cumulation.getReadIndex();
+
                 return null;
             }
             //如果是126，那么接下来的2个bytes解释为16bit的无符号整形作为负载数据的长度。
@@ -335,11 +334,10 @@ public class WebsocketFrame {
             if (remaining < off + 8) {
                 cumulation.reset();
                 LOGGER.warn("extendedPlay 数据包不完整");
-                cumulation.getReadIndex();
+
                 return null;
             }
             //如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
-            // TODO: 2023/6/1 超过65535太长了，用不着
             extendedPlay=new byte[8];
             for (int i = 0; i < extendedPlay.length; i++) {
                 extendedPlay[i]=cumulation.get();
@@ -364,7 +362,7 @@ public class WebsocketFrame {
 
         if (remaining < off + finalLen) {
             cumulation.reset();
-            cumulation.getReadIndex();
+
             LOGGER.warn("payloadLen 不够");
             return null;
         }
@@ -392,7 +390,7 @@ public class WebsocketFrame {
         if (Objects.nonNull(data)) {
             off = copy(off, fra, data);
         }
-        cumulation.getReadIndex();
+
         LOGGER.info("before getResult too long  off {}", off);
         return fra;
     }

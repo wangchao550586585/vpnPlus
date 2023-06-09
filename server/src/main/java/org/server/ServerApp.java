@@ -44,12 +44,12 @@ public class ServerApp {
         try {
             ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
             serverSocketChannel.socket().bind(new InetSocketAddress(8070));
-            LOGGER.info("MasterReactor bind success");
+            LOGGER.debug("MasterReactor bind success");
             serverSocketChannel.configureBlocking(false);
             Selector masterReactor = Selector.open();
-            LOGGER.info("MasterReactor selector open success");
+            LOGGER.debug("MasterReactor selector open success");
             SelectorStrategy selectorStrategy = new SelectorStrategy();
-            LOGGER.info("slaveReactor open Selector all success");
+            LOGGER.debug("slaveReactor open Selector all success");
             serverSocketChannel.register(masterReactor, SelectionKey.OP_ACCEPT);
             LOGGER.info("MasterReactor channel register success");
             while (true) {

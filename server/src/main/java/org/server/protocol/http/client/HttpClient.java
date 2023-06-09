@@ -113,7 +113,7 @@ public class HttpClient implements Runnable {
         try {
             //删除channel
             //这里可能在升级状态中客户端关闭
-            LOGGER.info("4.收到客户端删除http channel client seqId {}", seqId);
+            LOGGER.debug("4.收到客户端删除http channel client seqId {}", seqId);
             Object attachment = selectionKey.attachment();
             if (attachment instanceof HttpClientHandler) {
                 remoteChannel.close();
@@ -124,7 +124,7 @@ public class HttpClient implements Runnable {
                 channelWrapped.cumulation().clearAll();
             }
             //最后删除selector
-            LOGGER.info("5.收到客户端删除http selector client seqId {}", seqId);
+            LOGGER.debug("5.收到客户端删除http selector client seqId {}", seqId);
             closeSelector();
         } catch (Exception e) {
             LOGGER.error("5.收到客户端删除http selector失败 client seqId " + seqId, e);

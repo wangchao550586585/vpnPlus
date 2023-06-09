@@ -36,11 +36,8 @@ public class WsReceive extends AbstractHandler {
                 WebsocketFrame frame = WebsocketFrame.parse(channelWrapped);
                 //协议错误，断开连接
                 if (Objects.isNull(frame)) {
-                    //closeChildChannel();
                     return;
                 }
-                //LOGGER.info("Receive {} {} ", frame.toString(), uuid);
-                String msg = "";
                 byte[] dataByte = frame.payloadData();
                 switch (Utils.binary2Int(frame.opcode())) {
                     case 0x00:
@@ -98,9 +95,6 @@ public class WsReceive extends AbstractHandler {
     private void handlerRequest(String cmd, int seqId, byte[] data) throws IOException {
         LOGGER.info("receive cmd {} ,seqId {}", cmd, seqId);
         if (cmd.equals("write")) {
-   /*         if (data[0]==70){
-                LOGGER.info("websocket receive \r\n {}", new String(data));
-            }*/
             //1.获取对应channel
             AbstractHandler handler = wsClient.channelMap.get(seqId);
             if (null != handler) {

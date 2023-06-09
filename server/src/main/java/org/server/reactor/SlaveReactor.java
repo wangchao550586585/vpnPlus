@@ -224,8 +224,6 @@ public class SlaveReactor implements Runnable {
                 //select和register会造成阻塞
                 SelectionKey selectionKey = childChannel.register(unwrappedSelector, 0);
                 ChannelWrapped channelWrapped = ChannelWrapped.builder().key(selectionKey).channel(childChannel);
-                //AbstractHandler handler = new AuthHandler(channelWrapped);
-                //AbstractHandler handler = new HttpHandler(channelWrapped);
                 WebsocketHandler handler = new WebsocketHandler(channelWrapped);
                 selectionKey.attach(handler);
                 selectionKey.interestOps(SelectionKey.OP_READ);

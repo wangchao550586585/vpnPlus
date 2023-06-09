@@ -10,8 +10,6 @@ import org.server.protocol.websocket.server.WebsocketReceive;
 
 import java.io.IOException;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.SocketChannel;
-import java.util.Base64;
 import java.util.Random;
 
 public class HttpClientHandler implements Runnable {

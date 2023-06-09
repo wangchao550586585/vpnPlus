@@ -80,7 +80,6 @@ public class WsClientUpgradeHandler extends AbstractHandler {
             return null;
         }
         cumulation.mark();
-        cumulation.print(uuid);
         //1:读取status line
         String readLine = cumulation.readLine();
         LOGGER.debug("statusLine {} {} ", readLine, uuid);
