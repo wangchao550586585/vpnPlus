@@ -181,8 +181,9 @@ public class SlaveReactor implements Runnable {
     private void processIOOptimized() {
         for (int i = 0; i < selectedKeys.size; i++) {
             SelectionKey key = selectedKeys.keys[i];
+            AbstractHandler handler = (AbstractHandler) key.attachment();
             selectedKeys.keys[i] = null;
-            handler(key);
+            handler(key,handler);
         }
     }
 
@@ -191,29 +192,32 @@ public class SlaveReactor implements Runnable {
         Iterator<SelectionKey> iterator = selectionKeys.iterator();
         while (iterator.hasNext()) {
             SelectionKey key = iterator.next();
+            AbstractHandler handler = (AbstractHandler) key.attachment();
             iterator.remove();
-            handler(key);
+            handler(key,handler);
         }
     }
 
-    private void handler(SelectionKey key) {
+    private void handler(SelectionKey key,AbstractHandler handler) {
         //主动调用cancel，close chanle，close selector会key失效
         if (!key.isValid()) {
-            AbstractHandler handler = (AbstractHandler) key.attachment();
             String uuid = handler.uuid();
             LOGGER.error("key was invalid {}", uuid);
             handler.closeChildChannel();//这里会取消key
             return;
         }
-        if (key.isReadable()) {
-            Runnable runnable = (Runnable) key.attachment();
-            runnable.run();
-        }
-        if (key.isWritable()){
-            LOGGER.info("写模式");
-            AbstractHandler runnable = (AbstractHandler) key.attachment();
-            //唤醒写
-            runnable.signal();
+        try {
+            int readyOps = key.readyOps();
+            if ((readyOps & SelectionKey.OP_READ) != 0) {
+                handler.run();
+            }
+            if ((readyOps & SelectionKey.OP_WRITE) != 0) {
+                LOGGER.info("写模式");
+                //唤醒写
+                handler.signal();
+            }
+        } catch (CancelledKeyException ignored) {
+            handler.closeChildChannel();//这里会取消key
         }
     }
 
