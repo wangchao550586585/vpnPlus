@@ -52,20 +52,16 @@ public class WebsocketReceive extends AbstractHandler {
 
     @Override
     protected void exec() throws Exception {
-        while (true) {
-            try {
-                //没有读到对应的终止符则返回接着继续读。
+        //没有读到对应的终止符则返回接着继续读。
         /*客户端必须在它发送到服务器的所有帧中添加掩码（Mask）（具体细节见5.3节）。
         （注意：无论WebSocket协议是否使用了TLS，帧都需要添加掩码）。服务端收到没有添加掩码的数据帧以后，
         必须立即关闭连接。在这种情况下，服务端可以发送一个在7.4.1节定义的状态码为1002（协议错误）的关闭帧。
         服务端禁止在发送数据帧给客户端时添加掩码。
         客户端如果收到了一个添加了掩码的帧，必须立即关闭连接。
         在这种情况下，它可以使用第7.4.1节定义的1002（协议错误）状态码。（*/
-                WebsocketFrame frame = WebsocketFrame.parse(channelWrapped);
-                //协议错误，断开连接
-                if (Objects.isNull(frame)) {
-                    return;
-                }
+        WebsocketFrame frame;
+        try {
+            while (null != (frame = WebsocketFrame.parse(channelWrapped))) {
                 byte[] tempPayloadData = frame.payloadData();
                 switch (Utils.binary2Int(frame.opcode())) {
                     case 0x00:
@@ -103,11 +99,10 @@ public class WebsocketReceive extends AbstractHandler {
                 }
                 //读取结束则清除本次读取数据
                 channelWrapped.cumulation().clear();
-            } catch (IOException e) {
-                LOGGER.error("error ", e);
             }
+        } catch (IOException e) {
+            LOGGER.error("error ", e);
         }
-
     }
 
     private void handlerRequest(String cmd, int seqId, byte[] data) throws IOException {

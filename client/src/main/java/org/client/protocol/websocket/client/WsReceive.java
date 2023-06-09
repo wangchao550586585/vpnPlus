@@ -30,14 +30,9 @@ public class WsReceive extends AbstractHandler {
 
     @Override
     protected void exec() throws Exception {
-        while (true){
-            try {
-                String uuid = channelWrapped.uuid();
-                WebsocketFrame frame = WebsocketFrame.parse(channelWrapped);
-                //协议错误，断开连接
-                if (Objects.isNull(frame)) {
-                    return;
-                }
+        WebsocketFrame frame;
+        try {
+            while (null != (frame = WebsocketFrame.parse(channelWrapped))) {
                 byte[] dataByte = frame.payloadData();
                 switch (Utils.binary2Int(frame.opcode())) {
                     case 0x00:
@@ -45,7 +40,7 @@ public class WsReceive extends AbstractHandler {
                     case 0x01:
                         break;
                     case 0x02:
-                        if (dataByte.length==0){
+                        if (dataByte.length == 0) {
                             LOGGER.info("receive 0");
                             return;
                         }
@@ -76,7 +71,7 @@ public class WsReceive extends AbstractHandler {
                          * 如果终端收到一个Ping帧但是没有发送Pong帧来回应之前的ping帧，那么终端可能选择用Pong帧来回复最近处理的那个Ping帧。
                          * Pong帧可以被主动发送。这会作为一个单向的心跳。预期外的Pong包的响应没有规定。
                          */
-                        LOGGER.info("receive pong channelSize {} channel seqids {}",wsClient.channelMap.size(),wsClient.channelMap.keySet());
+                        LOGGER.info("receive pong channelSize {} channel seqids {}", wsClient.channelMap.size(), wsClient.channelMap.keySet());
                         //更新时间
                         heartbeat.num(0);
                         break;
@@ -85,11 +80,11 @@ public class WsReceive extends AbstractHandler {
                 }
                 //读取结束则清除本次读取数据
                 channelWrapped.cumulation().clear();
-            } catch (IOException e) {
-                LOGGER.error("error ", e);
-            }
-        }
 
+            }
+        } catch (IOException e) {
+            LOGGER.error("error ", e);
+        }
     }
 
     private void handlerRequest(String cmd, int seqId, byte[] data) throws IOException {
@@ -103,30 +98,30 @@ public class WsReceive extends AbstractHandler {
                     channel.write(ByteBuffer.wrap(data));
                 } catch (IOException e) {
                     //通知远端删除
-                    LOGGER.info("1.主动关闭客户端连接 write error  client seqId {}",seqId);
+                    LOGGER.info("1.主动关闭客户端连接 write error  client seqId {}", seqId);
                     wsClient.remove(seqId);
                 }
-            }else{
-                LOGGER.info("handlerRequest handler empty seqId {}",seqId);
+            } else {
+                LOGGER.info("handlerRequest handler empty seqId {}", seqId);
             }
 
         } else if (cmd.equals("closeAck")) {
-            LOGGER.info("7.主动关闭客户端ACK client seqId {}",seqId);
+            LOGGER.info("7.主动关闭客户端ACK client seqId {}", seqId);
         } else if (cmd.equals("close")) {
             receiveClose(seqId);
         }
     }
 
     private void receiveClose(int seqId) {
-        LOGGER.info("4.主动收到服务端关闭channel server seqId {}",seqId);
+        LOGGER.info("4.主动收到服务端关闭channel server seqId {}", seqId);
         //清除缓存数据
         Optional.ofNullable(wsClient.channelMap.remove(seqId)).ifPresent(it -> {
             //关闭客户端
             try {
-                LOGGER.info("5.主动收到服务端,关闭channel server seqId {}",seqId);
+                LOGGER.info("5.主动收到服务端,关闭channel server seqId {}", seqId);
                 it.getChannelWrapped().channel().close();
             } catch (IOException e) {
-                LOGGER.error("5.主动收到服务端,关闭channel失败 server seqId "+seqId,e);
+                LOGGER.error("5.主动收到服务端,关闭channel失败 server seqId " + seqId, e);
                 throw new RuntimeException(e);
             }
             it.getChannelWrapped().cumulation().clearAll();
@@ -135,10 +130,10 @@ public class WsReceive extends AbstractHandler {
             //占用2字节
             byte[] seqIdByte = Utils.int2Byte(seqId);
             try {
-                LOGGER.info("6.主动收到服务端,发送ACK server seqId {}",seqId);
+                LOGGER.info("6.主动收到服务端,发送ACK server seqId {}", seqId);
                 WebsocketFrame.write(cmdByte, seqIdByte, new byte[0], seqId + "", channelWrapped.channel());
             } catch (IOException e) {
-                LOGGER.error("6.主动收到服务端,发送ACK失败 server seqId "+seqId,e);
+                LOGGER.error("6.主动收到服务端,发送ACK失败 server seqId " + seqId, e);
                 throw new RuntimeException(e);
             }
         });
