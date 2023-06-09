@@ -7,6 +7,7 @@ import org.server.entity.CompositeByteBuf;
 import org.server.protocol.websocket.server.WebsocketReceive;
 import org.server.util.Pair;
 import org.server.util.Utils;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -69,7 +70,7 @@ public class WebsocketFrame {
         off = Utils.copy(off, payload, cmdByte);
         payload[off++] = (byte) seqIdByte.length;
         off = Utils.copy(off, payload, seqIdByte);
-        if (bytes.length>0) {
+        if (bytes.length > 0) {
             off = Utils.copy(off, payload, bytes);
         }
         WebsocketFrame.serverSendByte(payload, websocketReceive, uuid);
@@ -77,7 +78,7 @@ public class WebsocketFrame {
 
     public static void serverSendByte(byte[] payloadData, WebsocketReceive websocketReceive, String uuid) throws IOException {
         //构建长度
-        Pair<byte[], byte[]> pair = getLength(payloadData.length,uuid);
+        Pair<byte[], byte[]> pair = getLength(payloadData.length, uuid);
         //“负载字段”是用UTF-8编码的文本数据。
         WebsocketFrame.defaultFrame(WebsocketFrame.OpcodeEnum.SEND_BINARY,
                 DEFAULT_MASK,
@@ -90,13 +91,12 @@ public class WebsocketFrame {
     }
 
     /**
-     *
      * @param opcode
      * @param mask
      * @param payloadLen
      * @param payloadLenExtended
      * @param maskingKey
-     * @param payloadData 字节显示。
+     * @param payloadData        字节显示。
      * @param websocketReceive
      * @param uuid
      * @throws IOException
@@ -142,6 +142,7 @@ public class WebsocketFrame {
 
     /**
      * 获取解析之后的结果字节显示。
+     *
      * @param cumulation
      * @return
      */
@@ -203,9 +204,9 @@ public class WebsocketFrame {
                 return null;
             }
             //如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
-            extendedPlay=new byte[8];
+            extendedPlay = new byte[8];
             for (int i = 0; i < extendedPlay.length; i++) {
-                extendedPlay[i]=cumulation.get();
+                extendedPlay[i] = cumulation.get();
             }
             finalLen = Utils.byteToLong(extendedPlay);
             off += 8;
@@ -252,6 +253,7 @@ public class WebsocketFrame {
         }
         return fra;
     }
+
     public static WebsocketFrame parse(ChannelWrapped channelWrapped) {
         byte[] frame = getResult(channelWrapped.cumulation());
         //表示获取frame索引
@@ -273,39 +275,33 @@ public class WebsocketFrame {
         off = 0;
         //1bit mask,7bit payload
         //定义“有效负载数据”是否添加掩码。默认1，掩码的键值存在于Masking-Key中
-        byte[]  tempByte= Utils.bytes2Binary(frame[index++]);
+        byte[] tempByte = Utils.bytes2Binary(frame[index++]);
         byte mask = tempByte[off++];
         byte[] payloadLenBinary = Arrays.copyOfRange(tempByte, off, off + 7);
         byte[] payloadLenExtended = null;
-        off =0;
+        off = 0;
         //表示有多少个字节，而不是01。
         long payloadLen = Utils.binary2Int(payloadLenBinary);
         if (payloadLen <= 125) {
             //如果值为0-125，那么就表示负载数据的长度。
         } else if (payloadLen == 126) {
-            payloadLenExtended= new byte[]{frame[index++], frame[index++]};
-            payloadLen =Utils.bytes2Int(payloadLenExtended);
+            payloadLenExtended = new byte[]{frame[index++], frame[index++]};
+            payloadLen = Utils.bytes2Int(payloadLenExtended);
         } else {
             //如果是127，那么接下来的8个bytes解释为一个64bit的无符号整形（最高位的bit必须为0）作为负载数据的长度。
-            payloadLenExtended = Arrays.copyOfRange(frame, index, (index + 8 ));
-            index+=8;
+            payloadLenExtended = Arrays.copyOfRange(frame, index, (index + 8));
+            index += 8;
             payloadLen = Utils.byteToLong(payloadLenExtended);
-            LOGGER.info("parse too long  length {} bytes{}", payloadLen, Arrays.toString(Utils.binary2Bytes(payloadLenExtended)));
         }
         //所有从客户端发往服务端的数据帧都已经与一个包含在这一帧中的32 bit的掩码进行过了运算。
         //如果mask标志位（1 bit）为1，那么这个字段存在，如果标志位为0，那么这个字段不存在。
         byte[] maskingKey = null;
         if (mask == 1) {
             maskingKey = Arrays.copyOfRange(frame, index, (index + 4));
-            index += 4 ;
+            index += 4;
         }
         //“有效负载数据”是指“扩展数据”和“应用数据”。
-        byte[] payloadData = new byte[0];
-        try {
-            payloadData = Arrays.copyOfRange(frame, index, (int) (index + payloadLen));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        byte[] payloadData = Arrays.copyOfRange(frame, index, (int) (index + payloadLen));
         index += payloadLen;
         return WebsocketFrame.builder()
                 .fin(fin)
@@ -329,17 +325,17 @@ public class WebsocketFrame {
         if (Objects.nonNull(payloadLenExtended)) {
             off = copy(off, bytes, payloadLenExtended);
         }
-        off=length/8;
+        off = length / 8;
         if (Objects.nonNull(maskingKey)) {
-            off+=maskingKey.length;
+            off += maskingKey.length;
         }
         if (Objects.nonNull(payloadData)) {
-            off+=payloadData.length;
+            off += payloadData.length;
         }
         byte[] result = new byte[off];
-        Utils.binary2Bytes(bytes,result);
+        Utils.binary2Bytes(bytes, result);
 
-        off=length/8;
+        off = length / 8;
         if (Objects.nonNull(maskingKey)) {
             off = copy(off, result, maskingKey);
         }
